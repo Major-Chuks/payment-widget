@@ -1,0 +1,193 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  z-index: 1000;
+  overflow: auto;
+  animation: fadeIn 150ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  width: 100%;
+  background: white;
+  border-radius: 16px;
+  max-width: 418px;
+  width: 90%;
+  position: relative;
+  animation: slideIn 200ms ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(2%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalHeader {
+  width: 100%;
+  padding: 14px 16px;
+}
+
+.title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.title h3 {
+  color: var(--Grey-Grey-900, #0c0c0e);
+  font-size: 18px;
+  font-family: var(--font-geist);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 30px; /* 166.667% */
+  letter-spacing: -0.36px;
+  margin-bottom: 4px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalSubtitle {
+  color: var(--Grey-500, #7d828d);
+  font-family: var(--font-geist);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 22px; /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.walletList {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  padding-top: 24px;
+}
+
+.walletItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+  border: 1px solid transparent;
+}
+
+.walletItem > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.walletItem:hover {
+  background: #f8f9fa;
+  border: 1px solid var(--Grey-100, #f1f2f3);
+}
+
+.walletIcon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.walletName {
+  margin-left: -4px;
+  color: var(--Grey-900, #0c0c0e);
+  font-family: var(--font-geist);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 22px; /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.detectedBadge {
+  padding: 4px 8px;
+  border-radius: 50px;
+  background: var(--Grey-50, #f7f7f8);
+  color: var(--Grey-800, #383b41);
+  font-family: var(--font-geist);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%; /* 14.4px */
+}
+
+.radioBtn {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d0d0d0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radioSelected {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6148c2;
+}
+
+.errorBox {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 0 20px 16px;
+  color: #c00;
+  font-size: 14px;
+}
+
+.qrBadge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

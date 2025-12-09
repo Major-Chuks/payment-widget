@@ -1,0 +1,104 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--Card-Stroke, #e2e8f0);
+  background: #fff;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07),
+    0 1px 1px -14px rgba(0, 0, 0, 0.1);
+  margin-bottom: 32px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 14px;
+}
+
+.walletConnected {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: var(--Grey-900, #0c0c0e);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 22px; /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34c759;
+}
+
+.walletAddress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--Card-Stroke, #e2e8f0);
+  color: var(--Grey-700, #4f535d);
+  text-align: center;
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 22px; /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.addressIcon,
+.copyIcon,
+.signOutIcon {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disconnect {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--Grey-100, #f1f2f3) !important;
+  background: #f7f7f9 !important;
+  /* text */
+  color: var(--Colors-Red, var(--Colors-Red, #ff3b30));
+  text-align: center;
+  font-family: var(--font-geist);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 22px; /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.toggleBtn.toggle svg {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 540px) {
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .walletInfo {
+    width: 100%;
+    justify-content: space-between;
+    white-space: nowrap;
+  }
+}
