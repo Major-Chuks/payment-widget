@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import styles from "./PaymentCard.module.css";
 import poweredLogo from "@/assets/powered-logo.svg";

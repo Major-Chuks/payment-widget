@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { useConnection, useChainId, useConfig } from "wagmi";
 import { Header } from "../Header/Header";
