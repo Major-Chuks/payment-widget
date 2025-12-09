@@ -1,12 +1,11 @@
 "use client";
-
-import PaymentFlow from "@/components/PaymentFlow/PaymentFlow";
+import WalletConnectApp from "@/components/WalletConnectV4/WalletConnectV4";
 import classes from "./page.module.css";
 
 const page = () => {
   return (
     <div className={classes.container}>
-      <PaymentFlow />
+      <WalletConnectApp />
     </div>
   );
 };
