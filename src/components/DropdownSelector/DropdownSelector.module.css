@@ -22,7 +22,8 @@
   cursor: pointer;
   transition: background 0.2s;
   border-radius: 10px;
-  border: 1px solid var(--Card-Stroke, #e2e8f0);
+  border: 1px solid var(--Card-Stroke, #e2e8f0) !important;
+  outline: none;
   background: #f7f7f9;
   width: 100%;
 }
