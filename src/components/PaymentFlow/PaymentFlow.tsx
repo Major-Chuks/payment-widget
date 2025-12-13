@@ -1,20 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useConnection, useChainId, useConfig } from "wagmi";
+import { useAccount, useChainId, useConfig } from "wagmi";
+import { useAppKit } from "@reown/appkit/react";
 import { Header } from "../Header/Header";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { PaymentCard } from "../PaymentCard/PaymentCard";
-import { WalletModal } from "../WalletModal/WalletModal";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import styles from "./PaymentFlow.module.css";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 
 const PaymentFlow: React.FC = () => {
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  const { open } = useAppKit();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const { address, isConnected, connector } = useConnection();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
   const config = useConfig();
 
@@ -35,7 +35,7 @@ const PaymentFlow: React.FC = () => {
   const totalPrice = 102.5;
 
   const handleConnectWallet = () => {
-    setShowWalletModal(true);
+    open();
   };
 
   const handlePay = () => {
@@ -93,11 +93,6 @@ const PaymentFlow: React.FC = () => {
           balanceSymbol={symbol}
         />
       </div>
-
-      <WalletModal
-        isOpen={showWalletModal}
-        onClose={() => setShowWalletModal(false)}
-      />
 
       <SuccessModal
         isOpen={showSuccessModal}

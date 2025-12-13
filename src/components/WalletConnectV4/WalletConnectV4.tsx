@@ -2,94 +2,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React from "react";
 import {
-  useConnect,
-  useDisconnect,
   useBalance,
   useChainId,
-  useConnection,
-  useConnectors,
+  useAccount
 } from "wagmi";
+import { useAppKit, useDisconnect, useAppKitAccount } from "@reown/appkit/react";
 import styles from "./WalletConnectV4.module.css";
 
 const WalletConnectApp: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Account state
-  const { address, isConnected, connector } = useConnection();
-  const connectorsList = useConnectors();
-
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
+  // We can use AppKitAccount for isConnected/address or Wagmi's useAccount. 
+  // AppKit syncs with Wagmi, so useAccount is safer for other wagmi hooks.
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
-
-  const connect = useConnect();
-  const disconnect = useDisconnect();
 
   const { data: balanceData } = useBalance({ address });
 
-  /**
-   * ✅ DEDUPE CONNECTORS (FIX)
-   * Hide WalletConnect MetaMask entry if MetaMask is installed
-   */
-  const connectors = useMemo(() => {
-    const hasInjectedMetaMask =
-      typeof window !== "undefined" && (window as any).ethereum?.isMetaMask;
-
-    return connectorsList.filter((c) => {
-      if (c.id === "walletConnect" && hasInjectedMetaMask) {
-        return false;
-      }
-      return true;
-    });
-  }, [connectorsList]);
-
-  // Icons
-  const getWalletIcon = (name: string) => {
-    name = name.toLowerCase();
-    if (name.includes("metamask")) return "🦊";
-    if (name.includes("phantom")) return "👻";
-    if (name.includes("coinbase")) return "🔵";
-    if (name.includes("rabby")) return "🐰";
-    if (name.includes("walletconnect"))
-      return (
-        <img
-          src="https://www.walletconnect.com/_next/static/media/logo_mark.2c1e93c4.png"
-          alt="WalletConnect"
-          style={{ width: 26, height: 26 }}
-        />
-      );
-    return "💼";
-  };
-
-  const getWalletBadge = (c: any) =>
-    c.id === "walletConnect" ? (
-      <span className={styles.qrBadge}>QR CODE</span>
-    ) : (
-      <span className={styles.installedBadge}>INSTALLED</span>
-    );
-
   // Connect handler
-  const handleConnect = async (c: any) => {
-    try {
-      if (c.id === "walletConnect") {
-        setTimeout(() => {
-          setIsModalOpen(false);
-        }, 300);
-        connect.mutateAsync({ connector: c });
-      } else {
-        await connect.mutateAsync({ connector: c });
-        setIsModalOpen(false);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || "Failed to connect");
-    }
+  const handleConnect = () => {
+    open({ view: "Connect" });
   };
 
   // Disconnect handler
   const handleDisconnect = async () => {
     try {
-      await disconnect.mutateAsync();
+      await disconnect();
     } catch (e) {
       console.error(e);
     }
@@ -136,7 +76,7 @@ const WalletConnectApp: React.FC = () => {
         {!isConnected ? (
           <button
             className={styles.connectButton}
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleConnect}
           >
             Connect Wallet
           </button>
@@ -178,67 +118,6 @@ const WalletConnectApp: React.FC = () => {
           </>
         )}
       </div>
-
-      {isModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div className={styles.modalHeaderContent}>
-                <button className={styles.helpButton}>?</button>
-                <h2 className={styles.modalTitle}>Connect Wallet</h2>
-                <button
-                  className={styles.closeButton}
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.modalContent}>
-              {connect.error && (
-                <div className={styles.errorBox}>{connect.error.message}</div>
-              )}
-
-              <div className={styles.walletList}>
-                {connectors.map((c) => (
-                  <button
-                    key={c.id}
-                    className={styles.walletOption}
-                    onClick={() => handleConnect(c)}
-                    disabled={connect.isPending}
-                  >
-                    <div className={styles.walletLeft}>
-                      <div className={styles.walletIconWrapper}>
-                        {getWalletIcon(c.name)}
-                      </div>
-                      <span className={styles.walletName}>{c.name}</span>
-                    </div>
-
-                    <div className={styles.walletRight}>
-                      {getWalletBadge(c)}
-                      <span className={styles.arrow}>→</span>
-                    </div>
-                  </button>
-                ))}
-
-                <button className={styles.allWalletsOption}>
-                  <div className={styles.walletLeft}>
-                    <div className={styles.walletIconWrapper}>⋮</div>
-                    <span className={styles.walletName}>All Wallets</span>
-                  </div>
-                  <span className={styles.walletCountBadge}>
-                    {connectors.length}+
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
