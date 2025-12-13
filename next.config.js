@@ -19,6 +19,8 @@ const nextConfig = {
       "@metamask/sdk": false,
       "porto/internal": false,
       porto: false,
+      // axios: require.resolve("axios"),
+      // zod: require.resolve("zod"),
     };
 
     // Server-side externals for Node.js specific packages
