@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useMemo } from "react";
 import {
-  useConnection,
+  useAccount,
   usePublicClient,
   useSendTransaction,
   useWaitForTransactionReceipt,
@@ -28,7 +28,7 @@ export interface UseTransferReturn {
 
 export const useTransfer = (): UseTransferReturn => {
   const publicClient = usePublicClient();
-  const { address, isConnected } = useConnection();
+  const { address, isConnected } = useAccount();
 
   // ✅ Mutation-style hooks (correct for wagmi v3+)
   const sendTx = useSendTransaction();
@@ -58,7 +58,7 @@ export const useTransfer = (): UseTransferReturn => {
       try {
         if (!tokenContract) {
           // ✅ Native token transfer
-          await sendTx.mutateAsync({
+          await sendTx.sendTransactionAsync({
             to: toAddress as `0x${string}`,
             value: parseEther(amount),
           });
@@ -80,7 +80,7 @@ export const useTransfer = (): UseTransferReturn => {
 
           const parsedAmount = parseUnits(amount, decimals);
 
-          await writeTx.mutateAsync({
+          await writeTx.writeContractAsync({
             address: tokenContract as `0x${string}`,
             abi: erc20Abi,
             functionName: "transfer",

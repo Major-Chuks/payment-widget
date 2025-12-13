@@ -1,48 +1,40 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// File: config/wagmi.config.ts
-"use client";
+import { cookieStorage, createStorage } from "@wagmi/core";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import * as allNetworks from "@reown/appkit/networks";
+import type { AppKitNetwork } from "@reown/appkit/networks";
 
-import { http, createConfig } from "wagmi";
-import { mainnet, polygon, arbitrum, optimism, base, bsc } from "wagmi/chains";
-import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors";
+export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
-// Get your project ID from https://cloud.walletconnect.com
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
+if (!projectId) {
+  throw new Error("Project ID is not defined");
+}
 
-const connectors = [
-  injected(),
-  coinbaseWallet({
-    appName: "Web3 Wallet Connection",
-    appLogoUrl: "https://yourdomain.com/logo.png",
-  }),
-];
-
-// Only add WalletConnect if we have a project ID
-if (projectId) {
-  connectors.push(
-    walletConnect({
-      projectId,
-      metadata: {
-        name: "Web3 Wallet Connection",
-        description: "Connect your wallet to get started",
-        url: "https://yourdomain.com",
-        icons: ["https://yourdomain.com/icon.png"],
-      },
-      showQrModal: true,
-    }) as unknown as any
+// ✅ Type guard: checks if a value is an AppKitNetwork
+function isAppKitNetwork(value: unknown): value is allNetworks.AppKitNetwork {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "name" in value &&
+    "nativeCurrency" in value &&
+    typeof (value as any).nativeCurrency?.symbol === "string"
   );
 }
 
-export const config = createConfig({
-  chains: [mainnet, polygon, arbitrum, optimism, base, bsc],
-  connectors,
-  transports: {
-    [mainnet.id]: http(),
-    [polygon.id]: http(),
-    [arbitrum.id]: http(),
-    [optimism.id]: http(),
-    [base.id]: http(),
-    [bsc.id]: http(),
-  },
-  ssr: false,
+// ✅ Filter allNetworks values that are AppKitNetwork
+const _networks = Object.values(allNetworks).filter(isAppKitNetwork);
+
+export const networks = [
+  (_networks as AppKitNetwork[]).find((n) => n.id === 1)!, // mainnet
+  ...(_networks as AppKitNetwork[]).filter((n) => n.id !== 1),
+];
+
+// ✅ Create Wagmi Adapter config
+export const wagmiAdapter = new WagmiAdapter({
+  storage: createStorage({ storage: cookieStorage }),
+  ssr: true,
+  projectId,
+  networks: networks as unknown as AppKitNetwork[],
 });
+
+export const config = wagmiAdapter.wagmiConfig;

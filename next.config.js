@@ -1,42 +1,47 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
-    // Fix WalletConnect dynamic import issues
-    config.externals.push("pino-pretty", "lokijs", "encoding");
-    // Add porto/internal to externals if not using it
-    config.externals.push(
-      "porto/internal",
-      "porto",
-      "@base-org/account",
-      "@gemini-wallet/core",
-      "@metamask/sdk",
-      "@safe-global/safe-apps-sdk",
-      "@safe-global/safe-apps-provider"
-    );
+  // Transpile these packages so they're properly bundled
+  transpilePackages: [
+    "@base-org/account",
+    "@safe-global/safe-apps-sdk",
+    "@safe-global/safe-apps-provider",
+  ],
+
+  // Use SWC minifier instead of Terser (more stable)
+  swcMinify: true,
+
+  webpack: (config, { isServer }) => {
+    // Handle optional/missing peer dependencies
+    // These are wallet connectors you're not using
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@gemini-wallet/core": false,
+      "@metamask/sdk": false,
+      "porto/internal": false,
+      porto: false,
+    };
+
+    // Server-side externals for Node.js specific packages
+    if (isServer) {
+      config.externals.push("pino-pretty", "lokijs", "encoding");
+    }
+
+    // Client-side fallbacks for Node.js modules
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
 
     // 🛠 Tell Webpack to treat this Worker file as an ES module
     config.module.rules.push({
       test: /HeartbeatWorker\.js$/,
       type: "javascript/esm",
     });
-
-    // ✅ Optional: Also help Terser (minifier) treat modules correctly
-    if (config.optimization?.minimizer) {
-      config.optimization.minimizer = config.optimization.minimizer.map(
-        (plugin) => {
-          if (plugin.constructor.name === "TerserPlugin") {
-            return new plugin.constructor({
-              ...plugin.options,
-              terserOptions: {
-                ...plugin.options.terserOptions,
-                module: true,
-              },
-            });
-          }
-          return plugin;
-        }
-      );
-    }
 
     return config;
   },
