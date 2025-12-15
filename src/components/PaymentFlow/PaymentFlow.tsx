@@ -78,7 +78,7 @@ const PaymentFlow: React.FC = () => {
 
       <div className={styles.content}>
         <ProductCard
-          recipient="0x8444...F3E"
+          recipient="0x84440919610D5C40fEE7AB8824B4D0D69E494F3E"
           title="Club Tshirt"
           link="TEST LINK"
           imageUrl="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=300&fit=crop"

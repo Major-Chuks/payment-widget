@@ -1,11 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
 import styles from "./ProductCard.module.css";
-import CopyIcon from "@/assets/Copy";
 import xIcon from "@/assets/x-icon.svg";
 import Image from "next/image";
 import Button from "../Button/Button";
 import { Copy } from "../Copy/Copy";
+import { formatAddress } from "@/utils";
 
 interface ProductCardProps {
   recipient: string;
@@ -25,8 +25,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className={styles.recipient}>
         <span className={styles.recipientLabel}>Recipient</span>
         <div className={styles.recipientAddress}>
-          {recipient}
-          <Copy text="" color="#6148C2" />
+          {formatAddress(recipient)}
+          <Copy text={recipient} color="#6148C2" />
         </div>
       </div>
 

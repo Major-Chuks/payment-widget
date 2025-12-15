@@ -2,12 +2,12 @@ import React from "react";
 import styles from "./SuccessModal.module.css";
 import LargeCheckIcon from "@/assets/LargeCheckIcon";
 import CloseIcon from "@/assets/CloseIcon";
-import CopyIcon from "@/assets/Copy";
 import ExternalLinkIcon from "@/assets/ExternalLinkIcon";
 import Button from "../Button/Button";
 import DownloadIcon from "@/assets/DownloadIcon";
 import { Modal } from "../Modal/Modal";
 import { Copy } from "../Copy/Copy";
+import { formatAddress } from "@/utils";
 
 interface SuccessModalProps {
   isOpen: boolean;
@@ -68,7 +68,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               </div>
             </div>
             <div className={styles.hashValue}>
-              5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0
+              {formatAddress("5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0")}
               <Copy
                 text="5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
                 color="#474747"

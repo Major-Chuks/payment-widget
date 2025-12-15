@@ -36,7 +36,12 @@
 }
 
 .totalPrice {
-  margin-bottom: 30px;
+  width: 100%;
+}
+
+.buttonWrapper {
+  width: 100%;
+  margin: 40px 0;
 }
 
 .priceLabel {
@@ -127,7 +132,7 @@
   justify-content: center;
   gap: 6px;
   color: #7d828d;
-  font-family: var(--font-geist);
+  font-family: var(--font-pjs);
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
@@ -175,7 +180,7 @@
   margin-top: 28px;
   margin-bottom: 28px;
   color: var(--Grey-Grey-700, #4f535d);
-  font-family: "Plus Jakarta Sans";
+  font-family: var(--font-pjs);
   font-size: 15px;
   font-style: normal;
   font-weight: 500;
@@ -249,4 +254,10 @@
 
 .qrCodeBtn:hover {
   background: #f8f9fa;
+}
+
+@media screen and (max-width: 540px) {
+  .paymentCard {
+    padding: 16px;
+  }
 }

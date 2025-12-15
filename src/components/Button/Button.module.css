@@ -8,6 +8,11 @@
   white-space: nowrap;
   border: none;
   background: transparent;
+  transition: all 0.2s ease;
+  position: relative;
+  /* Needed for pseudo-element positioning */
+  isolation: isolate;
+  /* Creates a new stacking context */
 }
 
 .button .content {
@@ -15,6 +20,9 @@
   justify-content: center;
   align-items: center;
   gap: 10px;
+  position: relative;
+  /* Ensures text stays above pseudo-element */
+  z-index: 1;
 }
 
 .variant-primary,
@@ -31,12 +39,42 @@
   font-size: 15px;
   font-style: normal;
   font-weight: 500;
-  line-height: 22px; /* 146.667% */
+  line-height: 22px;
+  /* 146.667% */
   letter-spacing: -0.15px;
+  overflow: hidden;
+  /* Clips the pseudo-element to border-radius */
+}
+
+/* Pseudo-element for hover state */
+.variant-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #6c52d9 0%, #8773d9 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 0;
+}
+
+.variant-primary:hover::before {
+  opacity: 1;
+}
+
+.variant-primary:active::before {
+  opacity: 1;
+  background: linear-gradient(0deg, #533dad 0%, #6b58b3 100%);
+  transition: none;
+  /* Instant feedback on click */
 }
 
 .variant-primary:disabled {
   background: linear-gradient(0deg, #6148c2 0%, #7b66cc 100%);
+}
+
+/* Disable pseudo-element effects when disabled */
+.variant-primary:disabled::before {
+  opacity: 0;
 }
 
 .variant-secondary {
@@ -50,16 +88,15 @@
   color: #0f172b;
 }
 
-.button:disabled {
-  opacity: 0.4;
+.variant-secondary:hover {
+  background: #f1f5f9;
 }
 
-/* {
-  color: #7d828d;
-  font-family: var(--font-geist);
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 16px;
-  letter-spacing: -0.14px;
-} */
+.variant-secondary:active {
+  background: #e2e8f0;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

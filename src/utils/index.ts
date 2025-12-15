@@ -153,3 +153,7 @@ export function formatText(
       return input;
   }
 }
+
+export const formatAddress = (address: string) => {
+  return formatText(address, "clip", [6, 3]);
+};

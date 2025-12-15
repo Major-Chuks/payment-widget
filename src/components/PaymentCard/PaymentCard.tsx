@@ -88,16 +88,20 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
     return (
       <div className={styles.paymentCard}>
         <div className={styles.paymentHeader}>
-          <span className={styles.usdcIcon}>💵</span>
+          <span className={styles.usdcIcon}>
+            <Image src={usdcIcon} alt="" />
+          </span>
           <span>Pay with USDC</span>
         </div>
         <div className={styles.totalPrice}>
           <span className={styles.priceLabel}>Total price</span>
           <div className={styles.priceAmount}>${itemPrice.toFixed(2)} USDC</div>
         </div>
-        <Button variant="primary" onClick={onConnectWallet}>
-          CONNECT WALLET
-        </Button>
+        <div className={styles.buttonWrapper}>
+          <Button variant="primary" onClick={onConnectWallet}>
+            CONNECT WALLET
+          </Button>
+        </div>
         <div className={styles.poweredBy}>
           <Image src={poweredLogo} alt="" />
         </div>
@@ -133,9 +137,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       <div className={styles.priceBreakdown}>
         <div className={styles.priceRow}>
           <span className={styles.priceLabel}>Total Price</span>
-          <span className={styles.expiryTime}>
-            <RefreshIcon /> 30s
-          </span>
+          <Button>
+            <span className={styles.expiryTime}>
+              <RefreshIcon /> 30s
+            </span>
+          </Button>
         </div>
         <div className={styles.totalAmount}>
           {totalPrice.toFixed(2)} <span className={styles.currency}>USDC</span>

@@ -1,4 +1,4 @@
-import CopyIcon from "@/assets/Copy";
+import CopyIcon from "@/assets/CopyIcon";
 import React, { useState } from "react";
 
 interface CopyProps {
@@ -54,6 +54,8 @@ export const Copy: React.FC<CopyProps> = ({
         alignItems: "center",
         justifyContent: "center",
         transition: "opacity 0.2s",
+        width: "16px",
+        height: "16px",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.opacity = "0.7";

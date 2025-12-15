@@ -8,7 +8,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 48px;
+  padding: 16px 0;
   z-index: 1000;
   overflow: auto;
   animation: fadeIn 150ms ease-out;
@@ -52,10 +52,21 @@
   right: 20px;
   background: none;
   border: none;
-  font-size: 24px;
-  cursor: pointer;
   color: #999;
   line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.closeBtn:hover {
+  background: #f0f0f0;
 }
 
 .successIcon {
@@ -205,4 +216,10 @@
   border-radius: 12px;
   border: 1px solid #d9d9d9;
   background: #fff;
+}
+
+@media screen and (max-width: 540px) {
+  .successActions {
+    flex-direction: column;
+  }
 }
