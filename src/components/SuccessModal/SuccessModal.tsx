@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import styles from "./SuccessModal.module.css";
 import LargeCheckIcon from "@/assets/LargeCheckIcon";
 import CloseIcon from "@/assets/CloseIcon";
@@ -8,6 +8,8 @@ import DownloadIcon from "@/assets/DownloadIcon";
 import { Modal } from "../Modal/Modal";
 import { Copy } from "../Copy/Copy";
 import { formatAddress } from "@/utils";
+import { toJpeg } from "html-to-image";
+import { jsPDF } from "jspdf";
 
 interface SuccessModalProps {
   isOpen: boolean;
@@ -22,15 +24,100 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   amount,
   network,
 }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadReceipt = async () => {
+    if (modalRef.current === null) return;
+
+    setIsDownloading(true);
+
+    // Wait for the state to update and re-render
+    // Wait for the state to update and re-render
+    setTimeout(async () => {
+      try {
+        const dataUrl = await toJpeg(modalRef.current!, {
+          cacheBust: true,
+          pixelRatio: 2, // Good balance of quality and size
+          quality: 0.95,
+          backgroundColor: "#ffffff", // Ensure white background for JPEG
+        });
+
+        // Calculate dimensions
+        const modalRect = modalRef.current!.getBoundingClientRect();
+        const linkRect = linkRef.current?.getBoundingClientRect();
+
+        const modalWidth = modalRect.width;
+        const modalHeight = modalRect.height;
+
+        // Define target width in points (e.g. 380pt is decent for a receipt)
+        // A4 is 595.28pt wide
+        const pdfTargetWidth = 380;
+        const scaleFactor = pdfTargetWidth / modalWidth;
+        const pdfTargetHeight = modalHeight * scaleFactor;
+
+        const doc = new jsPDF({
+          orientation: "portrait",
+          unit: "pt",
+          format: "a4",
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        const xOffset = (pageWidth - pdfTargetWidth) / 2;
+        const yOffset = (pageHeight - pdfTargetHeight) / 2;
+
+        doc.addImage(
+          dataUrl,
+          "JPEG",
+          xOffset,
+          yOffset,
+          pdfTargetWidth,
+          pdfTargetHeight
+        );
+
+        // Add clickable area if linkRef exists
+        if (linkRect) {
+          const relativeX = linkRect.left - modalRect.left;
+          const relativeY = linkRect.top - modalRect.top;
+
+          const x = xOffset + relativeX * scaleFactor;
+          const y = yOffset + relativeY * scaleFactor;
+          const w = linkRect.width * scaleFactor;
+          const h = linkRect.height * scaleFactor;
+
+          // IMPORTANT: link to whatever the href is
+          const href = linkRef.current?.getAttribute("href") || "#";
+
+          doc.link(x, y, w, h, { url: href });
+        }
+
+        doc.save(`receipt-${Date.now()}.pdf`);
+      } catch (err) {
+        console.error("Failed to download receipt", err);
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 500);
+  };
+
   if (!isOpen) return null;
 
   return (
     <Modal open={isOpen} onOpenChange={onClose}>
       <div className={styles.modalOverlay} onClick={onClose}>
-        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-          <button className={styles.closeBtn} onClick={onClose}>
-            <CloseIcon />
-          </button>
+        <div
+          ref={modalRef}
+          className={styles.modal}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {!isDownloading && (
+            <button className={styles.closeBtn} onClick={onClose}>
+              <CloseIcon />
+            </button>
+          )}
           <div className={styles.successIcon}>
             <div className={styles.checkmarkCircle}>
               <LargeCheckIcon />
@@ -68,28 +155,38 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               </div>
             </div>
             <div className={styles.hashValue}>
-              {formatAddress("5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0")}
-              <Copy
-                text="5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
-                color="#474747"
-              />
+              {isDownloading
+                ? "5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
+                : formatAddress("5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0")}
+              {!isDownloading && (
+                <Copy
+                  text="5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
+                  color="#474747"
+                />
+              )}
             </div>
-            <a href="#" className={styles.explorerLink}>
+            <a href="#" className={styles.explorerLink} ref={linkRef}>
               View on Explorer <ExternalLinkIcon />
             </a>
           </div>
-          <div className={styles.successActions}>
-            <Button
-              variant="secondary"
-              className={styles.closeModalBtn}
-              onClick={onClose}
-            >
-              Close
-            </Button>
-            <Button variant="primary" className={styles.downloadBtn}>
-              <DownloadIcon /> Download Receipt
-            </Button>
-          </div>
+          {!isDownloading && (
+            <div className={styles.successActions}>
+              <Button
+                variant="secondary"
+                className={styles.closeModalBtn}
+                onClick={onClose}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                className={styles.downloadBtn}
+                onClick={handleDownloadReceipt}
+              >
+                <DownloadIcon /> Download Receipt
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </Modal>
