@@ -1,21 +1,20 @@
 import React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import styles from "./QRCodeModal.module.css";
-import qrcodeImage from "@/assets/qrcode-image.png";
-import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 import CloseIcon from "@/assets/CloseIcon";
 import PhoneIcon from "@/assets/PhoneIcon";
 
 interface QRCodeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  qrCodeUrl?: string;
+  qrCodeUrl: string;
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   open,
   onOpenChange,
-  qrCodeUrl = "https://example.com/checkout",
+  qrCodeUrl,
 }) => {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -37,7 +36,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           </div>
 
           <div className={styles.qrCodeContainer}>
-            <Image src={qrcodeImage} alt="" />
+            <QRCodeSVG value={qrCodeUrl} size={200} />
           </div>
 
           <div className={styles.instruction}>

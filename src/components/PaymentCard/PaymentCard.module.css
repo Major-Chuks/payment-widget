@@ -5,7 +5,9 @@
   border-radius: 16px;
   border: 1px solid var(--Card-Stroke, #e2e8f0);
   background: #fff;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
 .dropdownWrapper {
@@ -15,6 +17,11 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
+}
+
+.separator {
+  border-top: 1px solid #e2e8f0;
+  margin: 28px 0;
 }
 
 .paymentHeader {

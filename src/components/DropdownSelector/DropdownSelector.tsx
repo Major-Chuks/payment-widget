@@ -16,7 +16,7 @@ export interface SelectorOption {
 
 interface DropdownSelectorProps {
   options: SelectorOption[];
-  selectedOption: SelectorOption;
+  selectedOption: SelectorOption | null;
   onSelect: (option: SelectorOption) => void;
   label: string;
 }
@@ -37,16 +37,29 @@ export const DropdownSelector: React.FC<DropdownSelectorProps> = ({
   return (
     <div className={styles.selectorSection}>
       <label className={styles.sectionLabel}>{label}</label>
-      <Select.Root value={selectedOption.id} onValueChange={handleValueChange}>
+      <Select.Root
+        value={selectedOption?.id || ""}
+        onValueChange={handleValueChange}
+      >
         <Select.Trigger className={styles.selector}>
           <div className={styles.selectorContent}>
-            <img className={styles.icon} src={selectedOption.icon} alt="" />
-            <div className={styles.info}>
-              <div className={styles.name}>{selectedOption.name}</div>
-              {selectedOption.subtitle && (
-                <div className={styles.subtitle}>{selectedOption.subtitle}</div>
-              )}
-            </div>
+            {selectedOption ? (
+              <>
+                <img className={styles.icon} src={selectedOption.icon} alt="" />
+                <div className={styles.info}>
+                  <div className={styles.name}>{selectedOption.name}</div>
+                  {selectedOption.subtitle && (
+                    <div className={styles.subtitle}>
+                      {selectedOption.subtitle}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className={styles.info}>
+                <div className={styles.name}>Select {label}</div>
+              </div>
+            )}
           </div>
           <Select.Icon className={styles.dropdownArrow}>
             <ChevronDown color="#7D828D" />
@@ -64,9 +77,8 @@ export const DropdownSelector: React.FC<DropdownSelectorProps> = ({
                 <Select.Item
                   key={option.id}
                   value={option.id}
-                  className={`${styles.dropdownItem} ${
-                    selectedOption.id === option.id ? styles.selected : ""
-                  }`}
+                  className={`${styles.dropdownItem} ${selectedOption?.id === option.id ? styles.selected : ""
+                    }`}
                 >
                   <img className={styles.icon} src={option.icon} alt="" />
                   <div className={styles.info}>
@@ -77,7 +89,7 @@ export const DropdownSelector: React.FC<DropdownSelectorProps> = ({
                       <div className={styles.subtitle}>{option.subtitle}</div>
                     )}
                   </div>
-                  {selectedOption.id === option.id && (
+                  {selectedOption?.id === option.id && (
                     <span className={styles.checkmark}>
                       <CheckIcon />
                     </span>

@@ -9,10 +9,27 @@ import { PaymentCard } from "../PaymentCard/PaymentCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import styles from "./PaymentFlow.module.css";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useGetPaymentDetailsQuery } from "@/api-services/generated";
+import { get_paymentDetails } from "@/api-services/types/general/get_paymentDetails";
+import { SelectorOption } from "../DropdownSelector/DropdownSelector";
+import { useTransfer } from "@/hooks/useTransfer";
+import { Toaster, toast } from "sonner";
+import { LoadingState } from "../LoadingState/LoadingState";
+import { ErrorState } from "../ErrorState/ErrorState";
 
 const PaymentFlow: React.FC = () => {
   const { open } = useAppKit();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [customerInfoData, setCustomerInfoData] = useState<
+    Record<string, string>
+  >({});
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  const { data, isLoading, isError } = useGetPaymentDetailsQuery({
+    identifier: "01kfaqr87562p80kpsnnrtcx65",
+  });
+
+  const pd: get_paymentDetails = data?.data;
 
   const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
@@ -31,21 +48,97 @@ const PaymentFlow: React.FC = () => {
     }
   }, [isConnected, address, chainId, fetchBalance]);
 
-  const itemPrice = 100;
+  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption | null>(
+    null,
+  );
+
+  // Initialize selectedToken with the first option if available, otherwise null
+  const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
+    pd?.crypto_options?.[0]
+      ? {
+          id: pd.crypto_options[0].slug,
+          name: pd.crypto_options[0].slug.toUpperCase(),
+          subtitle: pd.crypto_options[0].title,
+          icon: pd.crypto_options[0].logo,
+          symbol: pd.crypto_options[0].slug.toUpperCase(),
+        }
+      : null,
+  );
+
+  // Update selectedToken when pd loads if it was null
+  useEffect(() => {
+    if (!selectedToken && pd?.crypto_options?.[0]) {
+      setSelectedToken({
+        id: pd.crypto_options[0].slug,
+        name: pd.crypto_options[0].slug.toUpperCase(),
+        subtitle: pd.crypto_options[0].title,
+        icon: pd.crypto_options[0].logo,
+        symbol: pd.crypto_options[0].slug.toUpperCase(),
+      });
+    }
+  }, [pd, selectedToken]);
+
+  const handleNetworkSelect = (option: SelectorOption | null) => {
+    setSelectedNetwork(option);
+  };
+
+  const handleTokenSelect = (option: SelectorOption) => {
+    setSelectedToken(option);
+  };
+
+  const recipientAddress =
+    selectedNetwork && pd
+      ? pd.recipients.find((r) => r.network.slug === selectedNetwork.id)
+          ?.wallet_address || ""
+      : "";
+
+  const itemPrice = pd?.price ? Number(pd.price) : 0;
   const totalPrice = 102.5;
 
   const handleConnectWallet = () => {
     open();
   };
 
-  const handlePay = () => {
-    setShowSuccessModal(true);
+  const { transfer, isTransferring, isSuccess, error } = useTransfer();
+
+  const handlePay = async () => {
+    if (!selectedNetwork || !recipientAddress || !selectedToken) {
+      toast.error(
+        "Please select a network and ensure payment details are complete.",
+      );
+      return;
+    }
+
+    console.log("Processing payment for:", customerInfoData);
+
+    try {
+      const networkData = pd.crypto_options
+        .find((opt) => opt.slug === selectedToken.id)
+        ?.networks.find((n) => n.slug === selectedNetwork.id);
+
+      const tokenContract = networkData?.token_address;
+
+      await transfer({
+        toAddress: recipientAddress,
+        amount: itemPrice.toString(), // Using itemPrice. Should we use totalPrice?
+        tokenContract: tokenContract,
+      });
+    } catch (e) {
+      console.error("Payment failed", e);
+      toast.error("Payment failed: " + (e as Error).message);
+    }
   };
+
+  useEffect(() => {
+    if (isSuccess) {
+      setShowSuccessModal(true);
+      fetchBalance();
+      toast.success("Payment successful!");
+    }
+  }, [isSuccess, fetchBalance]);
 
   const handleCloseSuccess = () => {
     setShowSuccessModal(false);
-    // Refresh balance after successful payment
-    fetchBalance();
   };
 
   const getChainName = (id: number | undefined) => {
@@ -67,8 +160,27 @@ const PaymentFlow: React.FC = () => {
     }
   };
 
+  if (isLoading) return <LoadingState />;
+  if (!pd || isError)
+    return (
+      <ErrorState
+        message="Failed to load payment details."
+        onRetry={() => window.location.reload()}
+      />
+    );
+
+  const handleCustomerInfoChange = (data: Record<string, string>) => {
+    setCustomerInfoData(data);
+    console.log("Customer Info Updated:", data);
+  };
+
+  const handleValidationChange = (isValid: boolean) => {
+    setIsFormValid(isValid);
+  };
+
   return (
     <div className={styles.paymentContainer}>
+      <Toaster position="top-center" richColors />
       <Header
         isWalletConnected={isConnected}
         connectedWallet={connector?.name || ""}
@@ -78,19 +190,31 @@ const PaymentFlow: React.FC = () => {
 
       <div className={styles.content}>
         <ProductCard
-          recipient="0x84440919610D5C40fEE7AB8824B4D0D69E494F3E"
-          title="Club Tshirt"
-          link="TEST LINK"
-          imageUrl="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=300&fit=crop"
+          recipient={recipientAddress}
+          title={pd.product_title}
+          description={pd.description}
+          images={pd.images}
         />
 
         <PaymentCard
           isWalletConnected={isConnected}
           itemPrice={itemPrice}
+          priceDenomination={pd.price_denomination_asset.slug.toUpperCase()}
           onConnectWallet={handleConnectWallet}
           onPay={handlePay}
+          isLoading={isTransferring}
           balance={isPending ? "Loading..." : balance}
           balanceSymbol={symbol}
+          cryptoOptions={pd.crypto_options}
+          selectedNetwork={selectedNetwork}
+          onNetworkSelect={handleNetworkSelect}
+          selectedToken={selectedToken}
+          onTokenSelect={handleTokenSelect}
+          requiresCustomerInfo={pd.requires_customer_info}
+          customerInfo={pd.customer_info}
+          onCustomerInfoChange={handleCustomerInfoChange}
+          isFormValid={isFormValid}
+          onValidate={handleValidationChange}
         />
       </div>
 

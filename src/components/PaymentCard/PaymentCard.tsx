@@ -14,72 +14,77 @@ import qrcodeIcon from "@/assets/qrcode-icon.svg";
 import RefreshIcon from "@/assets/RefreshIcon";
 import WarningIcon from "@/assets/WarningIcon";
 import usdcIcon from "@/assets/tokens/usdc.svg";
-import solIcon from "@/assets/tokens/sol.svg";
-import ethIcon from "@/assets/tokens/eth.svg";
-import maticIcon from "@/assets/tokens/matic.svg";
+import {
+  get_paymentDetails,
+  CustomerInfo,
+} from "@/api-services/types/general/get_paymentDetails";
+import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
 
 interface PaymentCardProps {
   isWalletConnected: boolean;
   itemPrice: number;
+  priceDenomination: string;
   balance: string;
   balanceSymbol: string;
+  cryptoOptions: get_paymentDetails["crypto_options"];
   onConnectWallet: () => void;
   onPay: () => void;
+  selectedNetwork: SelectorOption | null;
+  onNetworkSelect: (option: SelectorOption | null) => void;
+  selectedToken: SelectorOption | null;
+  onTokenSelect: (option: SelectorOption) => void;
+  isLoading?: boolean;
+  requiresCustomerInfo: boolean;
+  customerInfo: CustomerInfo;
+  onCustomerInfoChange: (data: Record<string, string>) => void;
+  isFormValid: boolean;
+  onValidate: (isValid: boolean) => void;
 }
 
 export const PaymentCard: React.FC<PaymentCardProps> = ({
   isWalletConnected,
   itemPrice,
+  priceDenomination,
   balance,
   balanceSymbol,
+  cryptoOptions,
   onConnectWallet,
   onPay,
+  selectedNetwork,
+  onNetworkSelect,
+  selectedToken,
+  onTokenSelect,
+  isLoading = false,
+  requiresCustomerInfo,
+  customerInfo,
+  onCustomerInfoChange,
+  isFormValid,
+  onValidate,
 }) => {
-  const tokens: SelectorOption[] = [
-    {
-      id: "usdc",
-      name: "USDC",
-      subtitle: "USD Coin",
-      icon: usdcIcon.src,
-      balance: 150,
-      symbol: "USDC",
-    },
-    {
-      id: "sol",
-      name: "SOL",
-      subtitle: "Solana",
-      icon: solIcon.src,
-      balance: 5.2,
-      symbol: "SOL",
-    },
-    {
-      id: "eth",
-      name: "ETH",
-      subtitle: "Ethereum",
-      icon: ethIcon.src,
-      balance: 0.5,
-      symbol: "ETH",
-    },
-    {
-      id: "matic",
-      name: "MATIC",
-      subtitle: "Polygon",
-      icon: maticIcon.src,
-      balance: 200,
-      symbol: "MATIC",
-    },
-  ];
+  const tokens: SelectorOption[] = cryptoOptions.map((opt) => ({
+    id: opt.slug,
+    name: opt.slug.toUpperCase(),
+    subtitle: opt.title,
+    icon: opt.logo,
+    symbol: opt.slug.toUpperCase(),
+  }));
 
-  const networks: SelectorOption[] = [
-    { id: "solana", name: "Solana", icon: solIcon.src },
-    { id: "ethereum", name: "Ethereum", icon: ethIcon.src },
-    { id: "polygon", name: "Polygon", icon: maticIcon.src },
-  ];
-
-  const [selectedToken, setSelectedToken] = useState<SelectorOption>(tokens[0]);
-  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption>(
-    networks[0]
+  const selectedCryptoOption = cryptoOptions.find(
+    (opt) => opt.slug === selectedToken?.id,
   );
+
+  const networks: SelectorOption[] = selectedCryptoOption
+    ? selectedCryptoOption.networks.map((net) => ({
+      id: net.slug,
+      name: net.title,
+      icon: net.logo,
+    }))
+    : [];
+
+  const handleTokenSelect = (token: SelectorOption) => {
+    onTokenSelect(token);
+    onNetworkSelect(null); // Reset network when token changes.
+  };
   const [showQRModal, setShowQRModal] = useState(false);
   const fee = 2.5;
   const totalPrice = itemPrice + fee;
@@ -91,11 +96,13 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           <span className={styles.usdcIcon}>
             <Image src={usdcIcon} alt="" />
           </span>
-          <span>Pay with USDC</span>
+          <span>Pay with {priceDenomination}</span>
         </div>
         <div className={styles.totalPrice}>
           <span className={styles.priceLabel}>Total price</span>
-          <div className={styles.priceAmount}>${itemPrice.toFixed(2)} USDC</div>
+          <div className={styles.priceAmount}>
+            ${itemPrice.toFixed(2)} {priceDenomination}
+          </div>
         </div>
         <div className={styles.buttonWrapper}>
           <Button variant="primary" onClick={onConnectWallet}>
@@ -115,14 +122,14 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         <DropdownSelector
           options={tokens}
           selectedOption={selectedToken}
-          onSelect={setSelectedToken}
+          onSelect={handleTokenSelect}
           label="Pay with"
         />
 
         <DropdownSelector
           options={networks}
           selectedOption={selectedNetwork}
-          onSelect={setSelectedNetwork}
+          onSelect={onNetworkSelect}
           label="Network"
         />
       </div>
@@ -144,17 +151,30 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           </Button>
         </div>
         <div className={styles.totalAmount}>
-          {totalPrice.toFixed(2)} <span className={styles.currency}>USDC</span>
+          {totalPrice.toFixed(2)}{" "}
+          <span className={styles.currency}>{priceDenomination}</span>
         </div>
         <div className={styles.feeInfo}>
-          ≈ ${fee.toFixed(2)} ({itemPrice} USDC)
+          ≈ ${fee.toFixed(2)} ({itemPrice} {priceDenomination})
         </div>
       </div>
 
       {false && (
         <div className={styles.error}>
-          <WarningIcon /> Insufficient USDC balance to create token account
+          <WarningIcon /> Insufficient {priceDenomination} balance to create
+          token account
         </div>
+      )}
+
+      {requiresCustomerInfo && (
+        <>
+          <div className={styles.separator}></div>
+          <AdditionalInformation
+            customerInfo={customerInfo}
+            onChange={onCustomerInfoChange}
+            onValidate={onValidate}
+          />
+        </>
       )}
 
       <div className={styles.terms}>
@@ -179,8 +199,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         </span>
       </div>
 
-      <Button variant="primary" onClick={onPay}>
-        PAY
+      <Button variant="primary" onClick={onPay} disabled={isLoading || (requiresCustomerInfo && !isFormValid)}>
+        {isLoading ? "PROCESSING..." : "PAY"}
       </Button>
 
       <div className={styles.divider}>
@@ -194,7 +214,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
       <div className={styles.divider}></div>
 
-      <QRCodeModal open={showQRModal} onOpenChange={setShowQRModal} />
+      <QRCodeModal
+        open={showQRModal}
+        onOpenChange={setShowQRModal}
+        qrCodeUrl="https://example.com/checkout"
+      />
 
       <div className={styles.poweredBy}>
         <Image src={poweredLogo} alt="" />
