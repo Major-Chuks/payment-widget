@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccount, useChainId, useConfig } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import { useParams } from "next/navigation";
 import { Header } from "../Header/Header";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { PaymentCard } from "../PaymentCard/PaymentCard";
@@ -25,8 +26,11 @@ const PaymentFlow: React.FC = () => {
   >({});
   const [isFormValid, setIsFormValid] = useState(false);
 
+  const params = useParams();
+  const identifier = (params?.identifier as string);
+
   const { data, isLoading, isError } = useGetPaymentDetailsQuery({
-    identifier: "01kfaqr87562p80kpsnnrtcx65",
+    identifier,
   });
 
   const pd: get_paymentDetails = data?.data;
@@ -56,12 +60,12 @@ const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
     pd?.crypto_options?.[0]
       ? {
-          id: pd.crypto_options[0].slug,
-          name: pd.crypto_options[0].slug.toUpperCase(),
-          subtitle: pd.crypto_options[0].title,
-          icon: pd.crypto_options[0].logo,
-          symbol: pd.crypto_options[0].slug.toUpperCase(),
-        }
+        id: pd.crypto_options[0].slug,
+        name: pd.crypto_options[0].slug.toUpperCase(),
+        subtitle: pd.crypto_options[0].title,
+        icon: pd.crypto_options[0].logo,
+        symbol: pd.crypto_options[0].slug.toUpperCase(),
+      }
       : null,
   );
 
@@ -89,7 +93,7 @@ const PaymentFlow: React.FC = () => {
   const recipientAddress =
     selectedNetwork && pd
       ? pd.recipients.find((r) => r.network.slug === selectedNetwork.id)
-          ?.wallet_address || ""
+        ?.wallet_address || ""
       : "";
 
   const itemPrice = pd?.price ? Number(pd.price) : 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./PaymentCard.module.css";
 import poweredLogo from "@/assets/powered-logo.svg";
 import Image from "next/image";
@@ -86,6 +86,13 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
     onNetworkSelect(null); // Reset network when token changes.
   };
   const [showQRModal, setShowQRModal] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
   const fee = 2.5;
   const totalPrice = itemPrice + fee;
 
@@ -217,7 +224,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       <QRCodeModal
         open={showQRModal}
         onOpenChange={setShowQRModal}
-        qrCodeUrl="https://example.com/checkout"
+        qrCodeUrl={currentUrl}
       />
 
       <div className={styles.poweredBy}>

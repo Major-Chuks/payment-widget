@@ -1,6 +1,9 @@
 .paymentContainer {
   width: 100%;
   max-width: 964px;
+  margin: 0 auto;
+  padding-top: 56px;
+  padding-bottom: 48px;
 }
 
 .content {
@@ -13,7 +16,7 @@
 
 .content > div {
   position: sticky;
-  top: 0;
+  top: 16px;
 }
 
 @media (max-width: 968px) {
