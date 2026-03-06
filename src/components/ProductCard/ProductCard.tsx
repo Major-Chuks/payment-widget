@@ -8,8 +8,8 @@ import { Copy } from "../Copy/Copy";
 import { formatAddress } from "@/utils";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { ProductImage } from "@/api-services/types/general/get_paymentDetails";
 import { useState, useEffect, useCallback } from "react";
+import { ProductImage } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 
 interface ProductCardProps {
   recipient: string;

@@ -14,11 +14,9 @@ import qrcodeIcon from "@/assets/qrcode-icon.svg";
 import RefreshIcon from "@/assets/RefreshIcon";
 import WarningIcon from "@/assets/WarningIcon";
 import usdcIcon from "@/assets/tokens/usdc.svg";
-import {
-  get_paymentDetails,
-  CustomerInfo,
-} from "@/api-services/types/general/get_paymentDetails";
+
 import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
+import { CustomerInfo, get_paymentDetailsForPayer } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 
 interface PaymentCardProps {
   isWalletConnected: boolean;
@@ -26,7 +24,7 @@ interface PaymentCardProps {
   priceDenomination: string;
   balance: string;
   balanceSymbol: string;
-  cryptoOptions: get_paymentDetails["crypto_options"];
+  cryptoOptions: get_paymentDetailsForPayer["crypto_options"];
   onConnectWallet: () => void;
   onPay: () => void;
   selectedNetwork: SelectorOption | null;

@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
 import * as Select from "@radix-ui/react-select";
 import styles from "./AdditionalInformation.module.css";
-import {
-    CustomerInfo,
-    CustomCustomerField,
-} from "@/api-services/types/general/get_paymentDetails";
 import ChevronDown from "@/assets/ChevronDown";
 import { CountryDropdown } from "../CountryDropdown/CountryDropdown";
 import { PhoneInput } from "../PhoneInput/PhoneInput";
+import { CustomCustomerField, CustomerInfo } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 
 interface AdditionalInformationProps {
     customerInfo: CustomerInfo;

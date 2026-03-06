@@ -10,13 +10,12 @@ import { PaymentCard } from "../PaymentCard/PaymentCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import styles from "./PaymentFlow.module.css";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
-import { useGetPaymentDetailsQuery } from "@/api-services/generated";
-import { get_paymentDetails } from "@/api-services/types/general/get_paymentDetails";
 import { SelectorOption } from "../DropdownSelector/DropdownSelector";
 import { useTransfer } from "@/hooks/useTransfer";
 import { Toaster, toast } from "sonner";
 import { LoadingState } from "../LoadingState/LoadingState";
 import { ErrorState } from "../ErrorState/ErrorState";
+import { useGetPaymentDetailsForPayerQuery } from "@/api-services/generated";
 
 const PaymentFlow: React.FC = () => {
   const { open } = useAppKit();
@@ -29,11 +28,7 @@ const PaymentFlow: React.FC = () => {
   const params = useParams();
   const identifier = (params?.identifier as string);
 
-  const { data, isLoading, isError } = useGetPaymentDetailsQuery({
-    identifier,
-  });
-
-  const pd: get_paymentDetails = data?.data;
+  const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier);
 
   const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
@@ -116,7 +111,7 @@ const PaymentFlow: React.FC = () => {
     console.log("Processing payment for:", customerInfoData);
 
     try {
-      const networkData = pd.crypto_options
+      const networkData = pd?.crypto_options
         .find((opt) => opt.slug === selectedToken.id)
         ?.networks.find((n) => n.slug === selectedNetwork.id);
 

@@ -1,15 +1,92 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Generated file - DO NOT EDIT
-// This file contains React Query hooks for general API
+import { useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
+import { publicPaymentsApi } from "../definitions/publicPayments";
+import { useApiQuery, useApiMutation } from ".";
 
-import { paymentDetailsApi } from "../definitions/paymentDetails";
-import { useApiQuery } from ".";
+// Helper Types
+type ApiData<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
+type ApiVars<T extends (...args: any) => any> = Parameters<T>[0];
 
-export const useGetPaymentDetailsQuery = (
-  params: { identifier: string },
-  options?: Parameters<typeof useApiQuery>[2],
+export const publicPaymentsKeys = {
+  all: ["publicPayments"] as const,
+  get_paymentDetailsForPayer: (params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>) => [...publicPaymentsKeys.all, "get_paymentDetailsForPayer", params] as const,
+  get_checkPaymentStatus: (params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>) => [...publicPaymentsKeys.all, "get_checkPaymentStatus", params] as const,
+};
+
+export const useGetPaymentDetailsForPayerQuery = <TData = ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>>(
+  params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>,
+  options?: Omit<
+    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>, Error, TData>,
+    "queryKey" | "queryFn"
+  >
 ) =>
   useApiQuery(
-    ["get_healthCheck", JSON.stringify(params)],
-    () => paymentDetailsApi.get_paymentDetails(params),
-    options,
+    publicPaymentsKeys.get_paymentDetailsForPayer(params),
+    () => publicPaymentsApi.get_paymentDetailsForPayer(params),
+    options
+  );
+
+export const usePostCheckApprovalAndGetApproveTxMutation = (
+  options?: Omit<
+    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>, Error, ApiVars<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>>,
+    "mutationFn"
+  >
+) => {
+  const queryClient = useQueryClient();
+
+  return useApiMutation(publicPaymentsApi.post_checkApprovalAndGetApproveTx, {
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
+      (options?.onSuccess as any)?.(data, variables, context);
+    },
+  });
+};
+
+export const usePostPreparePaymentTransactionMutation = (
+  options?: Omit<
+    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_preparePaymentTransaction>, Error, ApiVars<typeof publicPaymentsApi.post_preparePaymentTransaction>>,
+    "mutationFn"
+  >
+) => {
+  const queryClient = useQueryClient();
+
+  return useApiMutation(publicPaymentsApi.post_preparePaymentTransaction, {
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
+      (options?.onSuccess as any)?.(data, variables, context);
+    },
+  });
+};
+
+export const usePostSubmitPaymentTxHashMutation = (
+  options?: Omit<
+    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_submitPaymentTxHash>, Error, ApiVars<typeof publicPaymentsApi.post_submitPaymentTxHash>>,
+    "mutationFn"
+  >
+) => {
+  const queryClient = useQueryClient();
+
+  return useApiMutation(publicPaymentsApi.post_submitPaymentTxHash, {
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
+      (options?.onSuccess as any)?.(data, variables, context);
+    },
+  });
+};
+
+export const useGetCheckPaymentStatusQuery = <TData = ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>>(
+  params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>,
+  options?: Omit<
+    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>, Error, TData>,
+    "queryKey" | "queryFn"
+  >
+) =>
+  useApiQuery(
+    publicPaymentsKeys.get_checkPaymentStatus(params),
+    () => publicPaymentsApi.get_checkPaymentStatus(params),
+    options
   );
