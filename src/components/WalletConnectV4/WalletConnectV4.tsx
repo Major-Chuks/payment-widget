@@ -6,7 +6,7 @@ import React from "react";
 import {
   useBalance,
   useChainId,
-  useAccount
+  useConnection
 } from "wagmi";
 import { useAppKit, useDisconnect, useAppKitAccount } from "@reown/appkit/react";
 import styles from "./WalletConnectV4.module.css";
@@ -14,9 +14,9 @@ import styles from "./WalletConnectV4.module.css";
 const WalletConnectApp: React.FC = () => {
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
-  // We can use AppKitAccount for isConnected/address or Wagmi's useAccount. 
-  // AppKit syncs with Wagmi, so useAccount is safer for other wagmi hooks.
-  const { address, isConnected, connector } = useAccount();
+  // We can use AppKitAccount for isConnected/address or Wagmi's useConnection. 
+  // AppKit syncs with Wagmi, so useConnection is safer for other wagmi hooks.
+  const { address, isConnected, connector } = useConnection();
   const chainId = useChainId();
 
   const { data: balanceData } = useBalance({ address });

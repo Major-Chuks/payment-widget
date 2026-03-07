@@ -5,7 +5,7 @@ import CloseIcon from "@/assets/CloseIcon";
 import ExternalLinkIcon from "@/assets/ExternalLinkIcon";
 import Button from "../Button/Button";
 import DownloadIcon from "@/assets/DownloadIcon";
-import { Modal } from "../Modal/Modal";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Copy } from "../Copy/Copy";
 import { formatAddress } from "@/utils";
 import { toJpeg } from "html-to-image";
@@ -14,8 +14,12 @@ import { jsPDF } from "jspdf";
 interface SuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  amount: number;
+  amount: string;
   network: string;
+  tokenSymbol?: string;
+  txHash?: string;
+  fromAddress?: string;
+  toAddress?: string;
 }
 
 export const SuccessModal: React.FC<SuccessModalProps> = ({
@@ -23,6 +27,10 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   onClose,
   amount,
   network,
+  tokenSymbol = "USDC",
+  txHash,
+  fromAddress,
+  toAddress,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
@@ -106,12 +114,13 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal open={isOpen} onOpenChange={onClose}>
-      <div className={styles.modalOverlay} onClick={onClose}>
-        <div
+    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+      <Dialog.Portal>
+        <Dialog.Overlay className={styles.modalOverlay} />
+        <Dialog.Content
           ref={modalRef}
           className={styles.modal}
-          onClick={(e) => e.stopPropagation()}
+          onInteractOutside={(e) => e.preventDefault()}
         >
           {!isDownloading && (
             <button className={styles.closeBtn} onClick={onClose}>
@@ -123,15 +132,15 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               <LargeCheckIcon />
             </div>
           </div>
-          <h2 className={styles.successTitle}>Payment Successful</h2>
-          <p className={styles.successSubtitle}>Thank you for your purchase!</p>
-          <div className={styles.successAmount}>{amount.toFixed(1)} USDT</div>
+          <Dialog.Title className={styles.successTitle}>Payment Successful</Dialog.Title>
+          <Dialog.Description className={styles.successSubtitle}>Thank you for your purchase!</Dialog.Description>
+          <div className={styles.successAmount}>{amount} {tokenSymbol}</div>
           <div className={styles.transactionDetails}>
             <div className={styles.detailsWrapper}>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>Amount Paid</span>
                 <span className={styles.detailValue}>
-                  {(amount - 2.5).toFixed(0)} USDC
+                  {amount} {tokenSymbol}
                 </span>
               </div>
               <div className={styles.detailRow}>
@@ -140,34 +149,49 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>Date & Time</span>
-                <span className={styles.detailValue}>Dec 2, 2025 04:12 PM</span>
+                <span className={styles.detailValue}>
+                  {new Date().toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  {new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
               </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>From</span>
-                <span className={styles.detailValue}>0x8444...F3E</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>To</span>
-                <span className={styles.detailValue}>0x3264...34W</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Transaction Hash</span>
-              </div>
-            </div>
-            <div className={styles.hashValue}>
-              {isDownloading
-                ? "5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
-                : formatAddress("5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0")}
-              {!isDownloading && (
-                <Copy
-                  text="5Uj6E5fAvKgzpnN7SfbU4aM4G5oSE5Cv7eA0Hbgzp4U0"
-                  color="#474747"
-                />
+              {fromAddress && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>From</span>
+                  <span className={styles.detailValue}>{formatAddress(fromAddress)}</span>
+                </div>
+              )}
+              {toAddress && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>To</span>
+                  <span className={styles.detailValue}>{formatAddress(toAddress)}</span>
+                </div>
+              )}
+              {txHash && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Transaction Hash</span>
+                </div>
               )}
             </div>
-            <a href="#" className={styles.explorerLink} ref={linkRef}>
-              View on Explorer <ExternalLinkIcon />
-            </a>
+            {txHash && (
+              <>
+                <div className={styles.hashValue}>
+                  {isDownloading ? txHash : formatAddress(txHash)}
+                  {!isDownloading && (
+                    <Copy text={txHash} color="#474747" />
+                  )}
+                </div>
+                <a href="#" className={styles.explorerLink} ref={linkRef}>
+                  View on Explorer <ExternalLinkIcon />
+                </a>
+              </>
+            )}
           </div>
           {!isDownloading && (
             <div className={styles.successActions}>
@@ -187,8 +211,8 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               </Button>
             </div>
           )}
-        </div>
-      </div>
-    </Modal>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };

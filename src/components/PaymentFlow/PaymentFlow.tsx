@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAccount, useChainId, useConfig } from "wagmi";
+import React, { useState, useEffect, useCallback } from "react";
+import { useConnection, useConfig, useSendTransaction, useSwitchChain } from "wagmi";
+import { waitForTransactionReceipt } from "@wagmi/core";
 import { useAppKit } from "@reown/appkit/react";
 import { useParams } from "next/navigation";
 import { Header } from "../Header/Header";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { PaymentCard } from "../PaymentCard/PaymentCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
+import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
 import styles from "./PaymentFlow.module.css";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { SelectorOption } from "../DropdownSelector/DropdownSelector";
-import { useTransfer } from "@/hooks/useTransfer";
 import { Toaster, toast } from "sonner";
 import { LoadingState } from "../LoadingState/LoadingState";
 import { ErrorState } from "../ErrorState/ErrorState";
-import { useGetPaymentDetailsForPayerQuery } from "@/api-services/generated";
+import {
+  useGetPaymentDetailsForPayerQuery,
+  usePostCheckApprovalAndGetApproveTxMutation,
+  usePostPreparePaymentTransactionMutation,
+  usePostSubmitPaymentTxHashMutation,
+} from "@/api-services/generated";
+import { publicPaymentsApi } from "@/api-services/definitions/publicPayments";
 
 const PaymentFlow: React.FC = () => {
   const { open } = useAppKit();
@@ -30,8 +37,7 @@ const PaymentFlow: React.FC = () => {
 
   const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier);
 
-  const { address, isConnected, connector } = useAccount();
-  const chainId = useChainId();
+  const { address, isConnected, connector, chainId } = useConnection();
   const config = useConfig();
 
   const { balance, symbol, isPending, fetchBalance } = useTokenBalance({
@@ -92,16 +98,79 @@ const PaymentFlow: React.FC = () => {
       : "";
 
   const itemPrice = pd?.price ? Number(pd.price) : 0;
-  const totalPrice = 102.5;
 
   const handleConnectWallet = () => {
     open();
   };
 
-  const { transfer, isTransferring, isSuccess, error } = useTransfer();
+  // --- Backend-driven payment flow hooks ---
+  const { mutateAsync: checkApproval } = usePostCheckApprovalAndGetApproveTxMutation();
+  const { mutateAsync: preparePayment } = usePostPreparePaymentTransactionMutation();
+  const { mutateAsync: submitPayment } = usePostSubmitPaymentTxHashMutation();
+  const sendTransaction = useSendTransaction();
+  const switchChain = useSwitchChain();
+
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentStep, setPaymentStep] = useState("");
+
+  // Post-payment status state
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<"submitted" | "pending" | "confirmed" | "failed">("submitted");
+  const [paymentStatusDetails, setPaymentStatusDetails] = useState<{
+    gatewayPaymentId?: string;
+    transactionRef?: string;
+    error?: string | null;
+    txHash?: string;
+  }>({});
+
+  // The pollPaymentStatus function has been removed. 
+  // We now rely entirely on the background polling useEffect below.
+
+  // Background polling when PaymentStatusModal is open in a pending state
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (
+      showStatusModal &&
+      (paymentStatus === "submitted" || paymentStatus === "pending") &&
+      paymentStatusDetails.gatewayPaymentId
+    ) {
+      intervalId = setInterval(async () => {
+        try {
+          const result = await publicPaymentsApi.get_checkPaymentStatus(
+            paymentStatusDetails.gatewayPaymentId!
+          );
+
+          if (result.status === "confirmed") {
+            // Background poll found it confirmed!
+            setShowStatusModal(false);
+            setPaymentStatusDetails((prev) => ({
+              ...prev,
+              txHash: result.tx_hash ?? undefined,
+            }));
+            setShowSuccessModal(true);
+            fetchBalance();
+            toast.success("Payment confirmed!");
+          } else if (result.status === "failed") {
+            // Background poll found it failed!
+            setPaymentStatus("failed");
+            setPaymentStatusDetails((prev) => ({
+              ...prev,
+              error: result.error,
+              txHash: result.tx_hash ?? undefined,
+            }));
+          }
+        } catch (error) {
+          console.error("Background polling error:", error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+
+    return () => clearInterval(intervalId);
+  }, [showStatusModal, paymentStatus, paymentStatusDetails, fetchBalance]);
 
   const handlePay = async () => {
-    if (!selectedNetwork || !recipientAddress || !selectedToken) {
+    if (!selectedNetwork || !selectedToken || !address) {
       toast.error(
         "Please select a network and ensure payment details are complete.",
       );
@@ -109,32 +178,120 @@ const PaymentFlow: React.FC = () => {
     }
 
     console.log("Processing payment for:", customerInfoData);
+    setIsPaying(true);
+
+    const commonPayload = {
+      payer_address: address,
+      network_id: selectedNetwork.id,
+      cryptocurrency_id: selectedToken.id,
+      quantity: 1,
+    };
 
     try {
-      const networkData = pd?.crypto_options
-        .find((opt) => opt.slug === selectedToken.id)
-        ?.networks.find((n) => n.slug === selectedNetwork.id);
-
-      const tokenContract = networkData?.token_address;
-
-      await transfer({
-        toAddress: recipientAddress,
-        amount: itemPrice.toString(), // Using itemPrice. Should we use totalPrice?
-        tokenContract: tokenContract,
+      // Step 1: Check approval & send approve tx if needed
+      setPaymentStep("Checking token approval...");
+      const approvalResult = await checkApproval({
+        identifier,
+        payload: commonPayload,
       });
+      console.log("[Pay Step 1] Approval check result:", approvalResult);
+
+      if (approvalResult.needs_approval) {
+        setPaymentStep("Approving token spend...");
+        const { tx } = approvalResult.approve_tx;
+        console.log("[Pay Step 1] Sending approve tx:", tx);
+
+        // Switch to the correct chain if needed
+        const requiredChainId = parseInt(tx.chainId, 16);
+        if (chainId !== requiredChainId) {
+          setPaymentStep("Switching network...");
+          await switchChain.mutateAsync({ chainId: requiredChainId });
+        }
+
+        const approveHash = await sendTransaction.mutateAsync({
+          to: tx.to,
+          data: tx.data,
+          value: BigInt(tx.value),
+          gas: BigInt(tx.gas),
+          chainId: requiredChainId,
+        });
+
+        setPaymentStep("Waiting for approval confirmation...");
+        await waitForTransactionReceipt(config, { hash: approveHash });
+        toast.success("Token approval confirmed!");
+      } else {
+        console.log("[Pay Step 1] No approval needed, skipping...");
+      }
+
+      // Step 2: Prepare the payment transaction
+      setPaymentStep("Preparing payment...");
+      const prepareResult = await preparePayment({
+        identifier,
+        payload: commonPayload,
+      });
+      console.log("[Pay Step 2] Prepare result:", prepareResult);
+
+      // Step 3: Send the payment transaction
+      setPaymentStep("Sending payment...");
+      const payTx = prepareResult.payment_tx.tx;
+      console.log("[Pay Step 3] Sending payment tx:", payTx);
+
+      // Switch to the correct chain if needed
+      const payChainId = parseInt(payTx.chainId, 16);
+      if (chainId !== payChainId) {
+        setPaymentStep("Switching network...");
+        await switchChain.mutateAsync({ chainId: payChainId });
+      }
+
+      const payHash = await sendTransaction.mutateAsync({
+        to: payTx.to as `0x${string}`,
+        data: payTx.data as `0x${string}`,
+        value: BigInt(payTx.value),
+        gas: BigInt(payTx.gas),
+        chainId: payChainId,
+      });
+
+      setPaymentStep("Waiting for payment confirmation...");
+      await waitForTransactionReceipt(config, { hash: payHash });
+
+      // Step 4: Submit the tx hash to backend
+      setPaymentStep("Finalizing payment...");
+      const submitResult = await submitPayment({
+        identifier,
+        payload: {
+          prepare_id: prepareResult.prepare_id,
+          tx_hash: payHash,
+        },
+      });
+      console.log("[Pay Step 4] Submit result:", submitResult);
+
+      // Step 5: Handle status from submitPayment
+      if (submitResult.status === "submitted" || submitResult.status === "pending") {
+        // Immediately show the pending modal and let the background useEffect poll
+        setPaymentStatus("pending");
+        setPaymentStatusDetails({
+          gatewayPaymentId: submitResult.gateway_payment_id,
+          transactionRef: submitResult.transaction_ref,
+          txHash: payHash,
+        });
+        setShowStatusModal(true);
+      } else {
+        // submitPayment returned non-submitted status — show status modal with retry
+        setPaymentStatus(submitResult.status as "pending" | "failed");
+        setPaymentStatusDetails({
+          gatewayPaymentId: submitResult.gateway_payment_id,
+          transactionRef: submitResult.transaction_ref,
+        });
+        setShowStatusModal(true);
+      }
     } catch (e) {
-      console.error("Payment failed", e);
+      console.error("Payment failed at step:", paymentStep, e);
       toast.error("Payment failed: " + (e as Error).message);
+    } finally {
+      setIsPaying(false);
+      setPaymentStep("");
     }
   };
-
-  useEffect(() => {
-    if (isSuccess) {
-      setShowSuccessModal(true);
-      fetchBalance();
-      toast.success("Payment successful!");
-    }
-  }, [isSuccess, fetchBalance]);
 
   const handleCloseSuccess = () => {
     setShowSuccessModal(false);
@@ -201,7 +358,8 @@ const PaymentFlow: React.FC = () => {
           priceDenomination={pd.price_denomination_asset.slug.toUpperCase()}
           onConnectWallet={handleConnectWallet}
           onPay={handlePay}
-          isLoading={isTransferring}
+          isLoading={isPaying}
+          loadingText={paymentStep}
           balance={isPending ? "Loading..." : balance}
           balanceSymbol={symbol}
           cryptoOptions={pd.crypto_options}
@@ -220,8 +378,25 @@ const PaymentFlow: React.FC = () => {
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleCloseSuccess}
-        amount={totalPrice}
+        amount={pd.price}
         network={getChainName(chainId)}
+        tokenSymbol={selectedToken?.symbol || "USDC"}
+        txHash={paymentStatusDetails.txHash}
+        fromAddress={address}
+        toAddress={recipientAddress}
+      />
+
+      <PaymentStatusModal
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        onRetry={() => {
+          setShowStatusModal(false);
+          handlePay();
+        }}
+        status={paymentStatus}
+        gatewayPaymentId={paymentStatusDetails.gatewayPaymentId}
+        transactionRef={paymentStatusDetails.transactionRef}
+        error={paymentStatusDetails.error}
       />
     </div>
   );

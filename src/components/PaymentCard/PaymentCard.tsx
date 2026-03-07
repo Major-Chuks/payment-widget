@@ -32,6 +32,7 @@ interface PaymentCardProps {
   selectedToken: SelectorOption | null;
   onTokenSelect: (option: SelectorOption) => void;
   isLoading?: boolean;
+  loadingText?: string;
   requiresCustomerInfo: boolean;
   customerInfo: CustomerInfo;
   onCustomerInfoChange: (data: Record<string, string>) => void;
@@ -53,6 +54,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   selectedToken,
   onTokenSelect,
   isLoading = false,
+  loadingText,
   requiresCustomerInfo,
   customerInfo,
   onCustomerInfoChange,
@@ -60,7 +62,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   onValidate,
 }) => {
   const tokens: SelectorOption[] = cryptoOptions.map((opt) => ({
-    id: opt.slug,
+    id: opt.id,
     name: opt.slug.toUpperCase(),
     subtitle: opt.title,
     icon: opt.logo,
@@ -68,12 +70,12 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   }));
 
   const selectedCryptoOption = cryptoOptions.find(
-    (opt) => opt.slug === selectedToken?.id,
+    (opt) => opt.id === selectedToken?.id,
   );
 
   const networks: SelectorOption[] = selectedCryptoOption
     ? selectedCryptoOption.networks.map((net) => ({
-      id: net.slug,
+      id: net.id,
       name: net.title,
       icon: net.logo,
     }))
@@ -205,7 +207,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       </div>
 
       <Button variant="primary" onClick={onPay} disabled={isLoading || (requiresCustomerInfo && !isFormValid)}>
-        {isLoading ? "PROCESSING..." : "PAY"}
+        {isLoading ? (loadingText || "PROCESSING...") : "PAY"}
       </Button>
 
       <div className={styles.divider}>
