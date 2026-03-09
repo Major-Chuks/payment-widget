@@ -2564,8 +2564,6 @@ export const fetchCountriesData = async (): Promise<ICountry[]> => {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-
-    console.log(formattedCountries);
     return formattedCountries;
   } catch (error) {
     console.error("Error fetching countries data:", error);

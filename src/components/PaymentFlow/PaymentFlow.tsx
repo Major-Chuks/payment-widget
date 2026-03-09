@@ -177,7 +177,11 @@ const PaymentFlow: React.FC = () => {
       return;
     }
 
-    console.log("Processing payment for:", customerInfoData);
+    if (pd?.requires_customer_info && !isFormValid) {
+      toast.error("Please fill in all required customer information.");
+      return;
+    }
+
     setIsPaying(true);
 
     const commonPayload = {
@@ -194,12 +198,10 @@ const PaymentFlow: React.FC = () => {
         identifier,
         payload: commonPayload,
       });
-      console.log("[Pay Step 1] Approval check result:", approvalResult);
 
       if (approvalResult.needs_approval) {
         setPaymentStep("Approving token spend...");
         const { tx } = approvalResult.approve_tx;
-        console.log("[Pay Step 1] Sending approve tx:", tx);
 
         // Switch to the correct chain if needed
         const requiredChainId = parseInt(tx.chainId, 16);
@@ -220,21 +222,45 @@ const PaymentFlow: React.FC = () => {
         await waitForTransactionReceipt(config, { hash: approveHash });
         toast.success("Token approval confirmed!");
       } else {
-        console.log("[Pay Step 1] No approval needed, skipping...");
       }
 
       // Step 2: Prepare the payment transaction
       setPaymentStep("Preparing payment...");
+
+      let formattedCustomerData: Record<string, any> | undefined = undefined;
+      if (pd?.requires_customer_info) {
+        const { fullName, city, country, streetName, streetNumber, zipCode, ...rest } = customerInfoData;
+
+        formattedCustomerData = { ...rest };
+
+        if (fullName) {
+          formattedCustomerData.name = fullName;
+        }
+
+        if (city || country || streetName || streetNumber || zipCode) {
+          formattedCustomerData.shipping_address = [
+            streetNumber,
+            streetName,
+            city,
+            zipCode,
+            country,
+          ].filter(Boolean).join(", ");
+        }
+      }
+
+      const preparePayload = {
+        ...commonPayload,
+        ...(pd?.requires_customer_info && formattedCustomerData ? { customer_data: formattedCustomerData } : {}),
+      };
+
       const prepareResult = await preparePayment({
         identifier,
-        payload: commonPayload,
+        payload: preparePayload,
       });
-      console.log("[Pay Step 2] Prepare result:", prepareResult);
 
       // Step 3: Send the payment transaction
       setPaymentStep("Sending payment...");
       const payTx = prepareResult.payment_tx.tx;
-      console.log("[Pay Step 3] Sending payment tx:", payTx);
 
       // Switch to the correct chain if needed
       const payChainId = parseInt(payTx.chainId, 16);
@@ -263,7 +289,6 @@ const PaymentFlow: React.FC = () => {
           tx_hash: payHash,
         },
       });
-      console.log("[Pay Step 4] Submit result:", submitResult);
 
       // Step 5: Handle status from submitPayment
       if (submitResult.status === "submitted" || submitResult.status === "pending") {
@@ -327,7 +352,6 @@ const PaymentFlow: React.FC = () => {
 
   const handleCustomerInfoChange = (data: Record<string, string>) => {
     setCustomerInfoData(data);
-    console.log("Customer Info Updated:", data);
   };
 
   const handleValidationChange = (isValid: boolean) => {

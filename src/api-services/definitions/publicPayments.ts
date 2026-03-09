@@ -27,6 +27,14 @@ interface PreparePaymentTransactionPayload {
   cryptocurrency_id: string;
   /** Must be at least 1. */
   quantity?: number;
+  /** Customer details when required by merchant. */
+  customer_data?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    shipping_address?: string;
+    [key: string]: any;
+  }
 }
 
 

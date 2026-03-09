@@ -93,7 +93,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       setCurrentUrl(window.location.href);
     }
   }, []);
-  const fee = 2.5;
+  const fee = 0;
   const totalPrice = itemPrice + fee;
 
   if (!isWalletConnected) {
@@ -161,9 +161,9 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           {totalPrice.toFixed(2)}{" "}
           <span className={styles.currency}>{priceDenomination}</span>
         </div>
-        <div className={styles.feeInfo}>
+        {/* <div className={styles.feeInfo}>
           ≈ ${fee.toFixed(2)} ({itemPrice} {priceDenomination})
-        </div>
+        </div> */}
       </div>
 
       {false && (
