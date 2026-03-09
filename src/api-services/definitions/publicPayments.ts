@@ -18,6 +18,13 @@ interface CheckApprovalAndGetApproveTxPayload {
 }
 
 
+export interface CustomerDataPayload {
+  name?: string;
+  email?: string;
+  phone?: string;
+  shipping_address?: string;
+}
+
 interface PreparePaymentTransactionPayload {
   /** Payer's wallet address. */
   payer_address: string;
@@ -28,13 +35,7 @@ interface PreparePaymentTransactionPayload {
   /** Must be at least 1. */
   quantity?: number;
   /** Customer details when required by merchant. */
-  customer_data?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    shipping_address?: string;
-    [key: string]: any;
-  }
+  customer_data?: CustomerDataPayload;
 }
 
 

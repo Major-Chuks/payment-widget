@@ -22,7 +22,7 @@ import {
   usePostPreparePaymentTransactionMutation,
   usePostSubmitPaymentTxHashMutation,
 } from "@/api-services/generated";
-import { publicPaymentsApi } from "@/api-services/definitions/publicPayments";
+import { publicPaymentsApi, CustomerDataPayload } from "@/api-services/definitions/publicPayments";
 
 const PaymentFlow: React.FC = () => {
   const { open } = useAppKit();
@@ -227,25 +227,24 @@ const PaymentFlow: React.FC = () => {
       // Step 2: Prepare the payment transaction
       setPaymentStep("Preparing payment...");
 
-      let formattedCustomerData: Record<string, any> | undefined = undefined;
+      let formattedCustomerData: CustomerDataPayload | undefined = undefined;
       if (pd?.requires_customer_info) {
-        const { fullName, city, country, streetName, streetNumber, zipCode, ...rest } = customerInfoData;
+        const { fullName, email, phone, city, country, streetName, streetNumber, zipCode } = customerInfoData;
 
-        formattedCustomerData = { ...rest };
+        const shipping_address = [
+          streetNumber,
+          streetName,
+          city,
+          zipCode,
+          country,
+        ].filter(Boolean).join(", ");
 
-        if (fullName) {
-          formattedCustomerData.name = fullName;
-        }
-
-        if (city || country || streetName || streetNumber || zipCode) {
-          formattedCustomerData.shipping_address = [
-            streetNumber,
-            streetName,
-            city,
-            zipCode,
-            country,
-          ].filter(Boolean).join(", ");
-        }
+        formattedCustomerData = {
+          name: fullName,
+          email,
+          phone,
+          shipping_address: shipping_address || undefined,
+        };
       }
 
       const preparePayload = {
