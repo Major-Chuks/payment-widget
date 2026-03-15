@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useConnection, useConfig, useSendTransaction, useSwitchChain } from "wagmi";
+import {
+  useConnection,
+  useConfig,
+  useSendTransaction,
+  useSwitchChain,
+} from "wagmi";
 import { waitForTransactionReceipt } from "@wagmi/core";
 import { useAppKit } from "@reown/appkit/react";
 import { useParams } from "next/navigation";
@@ -22,7 +27,10 @@ import {
   usePostPreparePaymentTransactionMutation,
   usePostSubmitPaymentTxHashMutation,
 } from "@/api-services/generated";
-import { publicPaymentsApi, CustomerDataPayload } from "@/api-services/definitions/publicPayments";
+import {
+  publicPaymentsApi,
+  CustomerDataPayload,
+} from "@/api-services/definitions/publicPayments";
 
 const PaymentFlow: React.FC = () => {
   const { open } = useAppKit();
@@ -33,9 +41,13 @@ const PaymentFlow: React.FC = () => {
   const [isFormValid, setIsFormValid] = useState(false);
 
   const params = useParams();
-  const identifier = (params?.identifier as string);
+  const identifier = params?.identifier as string;
 
-  const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier);
+  const {
+    data: pd,
+    isLoading,
+    isError,
+  } = useGetPaymentDetailsForPayerQuery(identifier);
 
   const { address, isConnected, connector, chainId } = useConnection();
   const config = useConfig();
@@ -61,12 +73,12 @@ const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
     pd?.crypto_options?.[0]
       ? {
-        id: pd.crypto_options[0].slug,
-        name: pd.crypto_options[0].slug.toUpperCase(),
-        subtitle: pd.crypto_options[0].title,
-        icon: pd.crypto_options[0].logo,
-        symbol: pd.crypto_options[0].slug.toUpperCase(),
-      }
+          id: pd.crypto_options[0].slug,
+          name: pd.crypto_options[0].slug.toUpperCase(),
+          subtitle: pd.crypto_options[0].title,
+          icon: pd.crypto_options[0].logo,
+          symbol: pd.crypto_options[0].slug.toUpperCase(),
+        }
       : null,
   );
 
@@ -94,7 +106,7 @@ const PaymentFlow: React.FC = () => {
   const recipientAddress =
     selectedNetwork && pd
       ? pd.recipients.find((r) => r.network.slug === selectedNetwork.id)
-        ?.wallet_address || ""
+          ?.wallet_address || ""
       : "";
 
   const itemPrice = pd?.price ? Number(pd.price) : 0;
@@ -104,8 +116,10 @@ const PaymentFlow: React.FC = () => {
   };
 
   // --- Backend-driven payment flow hooks ---
-  const { mutateAsync: checkApproval } = usePostCheckApprovalAndGetApproveTxMutation();
-  const { mutateAsync: preparePayment } = usePostPreparePaymentTransactionMutation();
+  const { mutateAsync: checkApproval } =
+    usePostCheckApprovalAndGetApproveTxMutation();
+  const { mutateAsync: preparePayment } =
+    usePostPreparePaymentTransactionMutation();
   const { mutateAsync: submitPayment } = usePostSubmitPaymentTxHashMutation();
   const sendTransaction = useSendTransaction();
   const switchChain = useSwitchChain();
@@ -115,7 +129,9 @@ const PaymentFlow: React.FC = () => {
 
   // Post-payment status state
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<"submitted" | "pending" | "confirmed" | "failed">("submitted");
+  const [paymentStatus, setPaymentStatus] = useState<
+    "submitted" | "pending" | "confirmed" | "failed"
+  >("submitted");
   const [paymentStatusDetails, setPaymentStatusDetails] = useState<{
     gatewayPaymentId?: string;
     transactionRef?: string;
@@ -123,7 +139,7 @@ const PaymentFlow: React.FC = () => {
     txHash?: string;
   }>({});
 
-  // The pollPaymentStatus function has been removed. 
+  // The pollPaymentStatus function has been removed.
   // We now rely entirely on the background polling useEffect below.
 
   // Background polling when PaymentStatusModal is open in a pending state
@@ -138,7 +154,7 @@ const PaymentFlow: React.FC = () => {
       intervalId = setInterval(async () => {
         try {
           const result = await publicPaymentsApi.get_checkPaymentStatus(
-            paymentStatusDetails.gatewayPaymentId!
+            paymentStatusDetails.gatewayPaymentId!,
           );
 
           if (result.status === "confirmed") {
@@ -229,7 +245,16 @@ const PaymentFlow: React.FC = () => {
 
       let formattedCustomerData: CustomerDataPayload | undefined = undefined;
       if (pd?.requires_customer_info) {
-        const { fullName, email, phone, city, country, streetName, streetNumber, zipCode } = customerInfoData;
+        const {
+          fullName,
+          email,
+          phone,
+          city,
+          country,
+          streetName,
+          streetNumber,
+          zipCode,
+        } = customerInfoData;
 
         const shipping_address = [
           streetNumber,
@@ -237,7 +262,9 @@ const PaymentFlow: React.FC = () => {
           city,
           zipCode,
           country,
-        ].filter(Boolean).join(", ");
+        ]
+          .filter(Boolean)
+          .join(", ");
 
         formattedCustomerData = {
           name: fullName,
@@ -249,7 +276,9 @@ const PaymentFlow: React.FC = () => {
 
       const preparePayload = {
         ...commonPayload,
-        ...(pd?.requires_customer_info && formattedCustomerData ? { customer_data: formattedCustomerData } : {}),
+        ...(pd?.requires_customer_info && formattedCustomerData
+          ? { customer_data: formattedCustomerData }
+          : {}),
       };
 
       const prepareResult = await preparePayment({
@@ -290,7 +319,10 @@ const PaymentFlow: React.FC = () => {
       });
 
       // Step 5: Handle status from submitPayment
-      if (submitResult.status === "submitted" || submitResult.status === "pending") {
+      if (
+        submitResult.status === "submitted" ||
+        submitResult.status === "pending"
+      ) {
         // Immediately show the pending modal and let the background useEffect poll
         setPaymentStatus("pending");
         setPaymentStatusDetails({
@@ -378,7 +410,7 @@ const PaymentFlow: React.FC = () => {
         <PaymentCard
           isWalletConnected={isConnected}
           itemPrice={itemPrice}
-          priceDenomination={pd.price_denomination_asset.slug.toUpperCase()}
+          priceDenomination={pd.price_denomination_asset.slug?.toUpperCase()}
           onConnectWallet={handleConnectWallet}
           onPay={handlePay}
           isLoading={isPaying}
