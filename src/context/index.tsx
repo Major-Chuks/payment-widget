@@ -6,6 +6,7 @@ import { createAppKit } from "@reown/appkit/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Config, WagmiProvider, cookieToInitialState } from "wagmi";
 import { networks, projectId, wagmiAdapter } from "@/config/wagmi.config";
+import SolanaProvider from "@/providers/SolanaProvider";
 
 const queryClient = new QueryClient();
 
@@ -38,7 +39,7 @@ function ContextProvider({
 }) {
   const initialState = cookieToInitialState(
     wagmiAdapter.wagmiConfig as Config,
-    cookies
+    cookies,
   );
 
   return (
@@ -46,7 +47,11 @@ function ContextProvider({
       config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <SolanaProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </SolanaProvider>
     </WagmiProvider>
   );
 }

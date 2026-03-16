@@ -15,7 +15,6 @@ interface HeaderProps {
   isWalletConnected: boolean;
   connectedWallet?: string;
   walletAddress?: string;
-  chainName?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
