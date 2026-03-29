@@ -5,6 +5,7 @@ import WarningIcon from "@/assets/WarningIcon";
 import Button from "../Button/Button";
 import * as Dialog from "@radix-ui/react-dialog";
 import { formatAddress } from "@/utils";
+import { Copiable } from "../Copiable/Copiable";
 
 type PaymentStatus = "submitted" | "pending" | "confirmed" | "failed";
 
@@ -103,17 +104,21 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
                             {gatewayPaymentId && (
                                 <div className={styles.detailRow}>
                                     <span className={styles.detailLabel}>Payment ID</span>
-                                    <span className={styles.detailValue}>
-                                        {formatAddress(gatewayPaymentId)}
-                                    </span>
+                                    <Copiable text={gatewayPaymentId}>
+                                        <span className={styles.detailValue}>
+                                            {formatAddress(gatewayPaymentId)}
+                                        </span>
+                                    </Copiable>
                                 </div>
                             )}
                             {transactionRef && (
                                 <div className={styles.detailRow}>
                                     <span className={styles.detailLabel}>Reference</span>
-                                    <span className={styles.detailValue}>
-                                        {formatAddress(transactionRef)}
-                                    </span>
+                                    <Copiable text={transactionRef}>
+                                        <span className={styles.detailValue}>
+                                            {formatAddress(transactionRef)}
+                                        </span>
+                                    </Copiable>
                                 </div>
                             )}
                             {error && (

@@ -30,7 +30,8 @@ export interface ProductImage {
 
 export interface Asset {
     id: string;
-    slug: string;
+    slug?: string;
+    code?: string;
     title: string;
     logo: string;
 }
@@ -48,7 +49,7 @@ export interface Network {
     slug: string;
     title: string;
     logo: string;
-    token_address?: string;
+    token_address: string;
 }
 
 export interface Recipient {
@@ -63,10 +64,11 @@ export interface CustomerInfo {
 
 export interface CustomCustomerField {
     key: string;
-    type: "text" | "email" | "tel" | string;
+    type: "text" | "select" | string;
     label: string;
     required: "0" | "1";
-    description: string | null;
+    description?: string | null;
+    options?: string[];
 }
 
 export interface SystemCustomerFields {

@@ -12,6 +12,7 @@ export const publicPaymentsKeys = {
   all: ["publicPayments"] as const,
   get_paymentDetailsForPayer: (params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>) => [...publicPaymentsKeys.all, "get_paymentDetailsForPayer", params] as const,
   get_checkPaymentStatus: (params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>) => [...publicPaymentsKeys.all, "get_checkPaymentStatus", params] as const,
+  get_cryptoQuote: (params: ApiVars<typeof publicPaymentsApi.get_cryptoQuote>) => [...publicPaymentsKeys.all, "get_cryptoQuote", params] as const,
 };
 
 export const useGetPaymentDetailsForPayerQuery = <TData = ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>>(
@@ -88,5 +89,18 @@ export const useGetCheckPaymentStatusQuery = <TData = ApiData<typeof publicPayme
   useApiQuery(
     publicPaymentsKeys.get_checkPaymentStatus(params),
     () => publicPaymentsApi.get_checkPaymentStatus(params),
+    options
+  );
+
+export const useGetCryptoQuoteQuery = <TData = ApiData<typeof publicPaymentsApi.get_cryptoQuote>>(
+  params: ApiVars<typeof publicPaymentsApi.get_cryptoQuote>,
+  options?: Omit<
+    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_cryptoQuote>, Error, TData>,
+    "queryKey" | "queryFn"
+  >
+) =>
+  useApiQuery(
+    publicPaymentsKeys.get_cryptoQuote(params),
+    () => publicPaymentsApi.get_cryptoQuote(params),
     options
   );

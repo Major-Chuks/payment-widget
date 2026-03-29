@@ -38,7 +38,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     // Force re-init if needed when images change, usually auto-handled but safe to know
   }, [emblaApi, onSelect]);
 
-  const hasMultipleImages = images && images.length > 1;
+  const validImages = images?.filter((img) => img?.url) || [];
+  const hasMultipleImages = validImages.length > 1;
 
   return (
     <div className={styles.productCard}>
@@ -61,32 +62,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Image Section */}
       <div className={styles.imageContainer}>
-        {hasMultipleImages ? (
-          <div className={styles.embla} ref={emblaRef}>
-            <div className={styles.emblaContainer}>
-              {images.map((img) => (
-                <div className={styles.emblaSlide} key={img.id}>
-                  <img
-                    src={img.url}
-                    alt={title}
-                    className={styles.productImage}
-                  />
-                </div>
-              ))}
+        {validImages.length > 0 ? (
+          hasMultipleImages ? (
+            <div className={styles.embla} ref={emblaRef}>
+              <div className={styles.emblaContainer}>
+                {validImages.map((img) => (
+                  <div className={styles.emblaSlide} key={img.id}>
+                    <img
+                      src={img.url}
+                      alt={title}
+                      className={styles.productImage}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <img
+              src={validImages[0].url}
+              alt={title}
+              className={styles.productImage}
+            />
+          )
         ) : (
-          <img
-            src={images?.[0]?.url || ""}
-            alt={title}
-            className={styles.productImage}
-          />
+          <div className={`${styles.productImage} ${styles.placeholder}`}>
+            <span>No Image Available</span>
+          </div>
         )}
 
         {/* Carousel Dots */}
         {hasMultipleImages && (
           <div className={styles.dotsContainer}>
-            {images.map((_, index) => (
+            {validImages.map((_, index) => (
               <button
                 key={index}
                 className={`${styles.dot} ${index === selectedIndex ? styles.dotActive : ""

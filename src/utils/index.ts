@@ -154,6 +154,20 @@ export function formatText(
   }
 }
 
-export const formatAddress = (address: string) => {
-  return formatText(address, "clip", [6, 3]);
+export const formatAddress = (address: string, clipLength: ClipLength = [6, 3]) => {
+  return formatText(address, "clip", clipLength);
 };
+
+
+export function clipAmount(value: number | string, significantDigits = 3): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (!isFinite(num) || num === 0) return String(num);
+
+  const magnitude = Math.floor(Math.log10(Math.abs(num)));
+  const decimalPlaces = magnitude >= 0 ? significantDigits : Math.abs(magnitude) - 1 + significantDigits;
+  const factor = Math.pow(10, decimalPlaces);
+  const truncated = Math.floor(Math.abs(num) * factor) / factor;
+  const result = (num < 0 ? -truncated : truncated).toFixed(decimalPlaces);
+
+  return result;
+}

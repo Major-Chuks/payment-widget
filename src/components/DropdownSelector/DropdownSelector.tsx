@@ -4,6 +4,8 @@ import * as Select from "@radix-ui/react-select";
 import styles from "./DropdownSelector.module.css";
 import ChevronDown from "@/assets/ChevronDown";
 import CheckIcon from "@/assets/CheckIcon";
+import { TokenIcon } from "../TokenIcon/TokenIcon";
+import { Network } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 
 export interface SelectorOption {
   id: string;
@@ -12,6 +14,7 @@ export interface SelectorOption {
   icon: string;
   balance?: number;
   symbol?: string;
+  networks?: Network[];
 }
 
 interface DropdownSelectorProps {
@@ -45,7 +48,12 @@ export const DropdownSelector: React.FC<DropdownSelectorProps> = ({
           <div className={styles.selectorContent}>
             {selectedOption ? (
               <>
-                <img className={styles.icon} src={selectedOption.icon} alt="" />
+                <TokenIcon
+                  src={selectedOption.icon}
+                  alt={selectedOption.name}
+                  size={24}
+                  className={styles.icon}
+                />
                 <div className={styles.info}>
                   <div className={styles.name}>{selectedOption.name}</div>
                   {selectedOption.subtitle && (
@@ -80,7 +88,12 @@ export const DropdownSelector: React.FC<DropdownSelectorProps> = ({
                   className={`${styles.dropdownItem} ${selectedOption?.id === option.id ? styles.selected : ""
                     }`}
                 >
-                  <img className={styles.icon} src={option.icon} alt="" />
+                  <TokenIcon
+                    src={option.icon}
+                    alt={option.name}
+                    size={24}
+                    className={styles.icon}
+                  />
                   <div className={styles.info}>
                     <Select.ItemText>
                       <div className={styles.name}>{option.name}</div>

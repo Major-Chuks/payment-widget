@@ -208,12 +208,25 @@ export const AdditionalInformation: React.FC<AdditionalInformationProps> = ({
 
             {/* Custom Fields */}
             {customerInfo.custom?.map((field: CustomCustomerField) => {
+                const isRequired = field.required === "1";
+                const placeholder = field.description || `Enter ${field.label.toLowerCase()}`;
+
+                if (field.type === "select" && field.options) {
+                    return renderSelect(
+                        field.key,
+                        field.label,
+                        field.options,
+                        placeholder,
+                        isRequired,
+                    );
+                }
+
                 return renderInput(
                     field.key,
                     field.label,
                     field.type,
-                    field.description || `Enter ${field.label.toLowerCase()}`,
-                    field.required === "1",
+                    placeholder,
+                    isRequired,
                 );
             })}
         </div>

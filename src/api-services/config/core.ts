@@ -182,6 +182,7 @@ export const createApiClient = (
       const apiError: ApiError = {
         message:
           responseData?.message ||
+          responseData?.msg ||
           error.message ||
           "An unexpected error occurred",
         code: responseData?.code,
@@ -197,6 +198,8 @@ export const createApiClient = (
           statusCode: apiError.statusCode,
         });
       }
+
+      console.log({ responseData, apiError });
 
       throw apiError;
     },

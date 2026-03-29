@@ -16,8 +16,7 @@ import {
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { Toaster, toast } from "sonner";
 
-import { useGetPaymentDetailsForPayerQuery } from "@/api-services/generated";
-import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useGetCryptoQuoteQuery, useGetPaymentDetailsForPayerQuery } from "@/api-services/generated";
 
 import { Header } from "../Header/Header";
 import { ProductCard } from "../ProductCard/ProductCard";
@@ -32,34 +31,20 @@ import { useProcessPayment } from "@/hooks/useProcessPayment";
 import { useConnectionWatcher } from "@/hooks/useConnectionWatcher";
 import { usePaymentPolling } from "@/hooks/usePaymentPolling";
 
-// Imported Refactored Hooks
-
 const PaymentFlow: React.FC = () => {
   const params = useParams();
   const identifier = params?.identifier as string;
 
-  // -- Query Data --
-  const {
-    data: pd,
-    isLoading,
-    isError,
-  } = useGetPaymentDetailsForPayerQuery(identifier);
+  const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier);
 
-  // -- Local State --
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [customerInfoData, setCustomerInfoData] = useState<
-    Record<string, string>
-  >({});
+  const [customerInfoData, setCustomerInfoData] = useState<Record<string, string>>({});
   const [isFormValid, setIsFormValid] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption | null>(
-    null,
-  );
-  const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
-    null,
-  );
+  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption | null>(null);
+  const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(null);
+  const [quoteId, setQuoteId] = useState<string | null>(null);
   const [isAwaitingConnection, setIsAwaitingConnection] = useState(false);
 
-  // -- Wagmi / Solana Context --
   const { open: openEvmModal } = useAppKit();
   const { address, isConnected, connector, chainId } = useConnection();
   const config = useConfig();
@@ -70,13 +55,8 @@ const PaymentFlow: React.FC = () => {
   const { connection: solanaConnection } = useSolanaConnection();
   const { setVisible: setSolanaModalVisible } = useWalletModal();
 
-  const { balance, symbol, isPending, fetchBalance } = useTokenBalance({
-    address: address || "",
-    chainId: chainId || 1,
-    config,
-  });
+  const { data: quote, refetch: refetchQuote } = useGetCryptoQuoteQuery({ identifier, params: { network_id: selectedNetwork?.id || "", cryptocurrency_id: selectedToken?.id || "" } }, { enabled: !!selectedNetwork && !!selectedToken });
 
-  // -- Business Logic Hooks --
   const {
     isPaying,
     paymentStep,
@@ -97,26 +77,57 @@ const PaymentFlow: React.FC = () => {
   });
 
   const isSolana =
-    selectedNetwork?.name?.toString()?.toLowerCase().includes("solana") ||
-    false;
+    selectedNetwork?.name?.toString()?.toLowerCase().includes("solana") || false;
 
-  // -- UseEffects --
-  useEffect(() => {
-    if (isConnected && address) fetchBalance();
-  }, [isConnected, address, chainId, fetchBalance]);
+  const recipientAddress =
+    selectedNetwork && pd
+      ? pd.recipients.find((r) => r.network.id === selectedNetwork.id)?.wallet_address || ""
+      : "";
+
+  const handlePay = () => {
+    executePayment({
+      selectedNetwork,
+      selectedToken,
+      quoteId,
+      isSolana,
+      pd,
+      isFormValid,
+      customerInfoData,
+      address,
+      publicKey,
+      chainId,
+      triggerEvmModal: openEvmModal,
+      triggerSolanaModal: () => setSolanaModalVisible(true),
+      setIsAwaitingConnection,
+    });
+  };
 
   useEffect(() => {
     if (!selectedToken && pd?.crypto_options?.[0]) {
       const opt = pd.crypto_options[0];
-      setSelectedToken({
-        id: opt.slug,
+      const token: SelectorOption = {
+        id: opt.id,
         name: opt.slug.toUpperCase(),
         subtitle: opt.title,
         icon: opt.logo,
         symbol: opt.slug.toUpperCase(),
-      });
+        networks: opt.networks,
+      };
+      setSelectedToken(token);
+
+      if (opt.networks?.[0]) {
+        const net = opt.networks[0];
+        // setSelectedNetwork({ id: net.id, name: net.title, icon: net.logo });
+      }
     }
   }, [pd, selectedToken]);
+
+  useEffect(() => {
+    if (selectedToken && !selectedNetwork && selectedToken.networks?.[0]) {
+      const net = selectedToken.networks[0];
+      // setSelectedNetwork({ id: net.id, name: net.title, icon: net.logo });
+    }
+  }, [selectedToken, selectedNetwork]);
 
   useConnectionWatcher({
     isAwaitingConnection,
@@ -134,7 +145,6 @@ const PaymentFlow: React.FC = () => {
       setShowStatusModal(false);
       setPaymentStatusDetails((prev) => ({ ...prev, txHash }));
       setShowSuccessModal(true);
-      fetchBalance();
       toast.success("Payment confirmed!");
     },
     onFail: (error, txHash) => {
@@ -143,29 +153,13 @@ const PaymentFlow: React.FC = () => {
     },
   });
 
-  // -- Handlers --
-  const handlePay = () => {
-    executePayment({
-      selectedNetwork,
-      selectedToken,
-      isSolana,
-      pd,
-      isFormValid,
-      customerInfoData,
-      address,
-      publicKey,
-      chainId,
-      triggerEvmModal: openEvmModal,
-      triggerSolanaModal: () => setSolanaModalVisible(true),
-      setIsAwaitingConnection,
-    });
-  };
+  useEffect(() => {
+    if (quote) {
+      setQuoteId(quote.quote_id);
+    }
+  }, [quote]);
 
-  const recipientAddress =
-    selectedNetwork && pd
-      ? pd.recipients.find((r) => r.network.id === selectedNetwork.id)
-          ?.wallet_address || ""
-      : "";
+
 
   if (isLoading) return <LoadingState />;
   if (!pd || isError)
@@ -196,15 +190,23 @@ const PaymentFlow: React.FC = () => {
         <PaymentCard
           isWalletConnected={isSolana ? !!publicKey : isConnected}
           itemPrice={Number(pd.price) || 0}
-          priceDenomination={pd.price_denomination_asset.slug?.toUpperCase()}
+          priceDenomination={(
+            pd.price_denomination_asset.slug ||
+            pd.price_denomination_asset.code ||
+            ""
+          ).toUpperCase()}
           onConnectWallet={() =>
             isSolana ? setSolanaModalVisible(true) : openEvmModal()
           }
+          quote={quote}
+          refetchQuote={() => {
+            if (!showSuccessModal && !showStatusModal) {
+              refetchQuote()
+            }
+          }}
           onPay={handlePay}
           isLoading={isPaying}
           loadingText={paymentStep}
-          balance={isPending ? "Loading..." : balance}
-          balanceSymbol={symbol}
           cryptoOptions={pd.crypto_options}
           selectedNetwork={selectedNetwork}
           onNetworkSelect={setSelectedNetwork}
@@ -227,6 +229,7 @@ const PaymentFlow: React.FC = () => {
         txHash={paymentStatusDetails.txHash}
         fromAddress={isSolana ? publicKey?.toBase58() : address}
         toAddress={recipientAddress}
+        explorerUrl={paymentStatusDetails.explorerUrl || ""}
       />
 
       <PaymentStatusModal

@@ -4,6 +4,7 @@ import { post_checkApprovalAndGetApproveTx } from "../types/publicPayments/post_
 import { post_preparePaymentTransaction } from "../types/publicPayments/post_preparePaymentTransaction";
 import { post_submitPaymentTxHash } from "../types/publicPayments/post_submitPaymentTxHash";
 import { get_checkPaymentStatus } from "../types/publicPayments/get_checkPaymentStatus";
+import { get_cryptoQuote } from "../types/publicPayments/get_cryptoQuote";
 
 
 interface CheckApprovalAndGetApproveTxPayload {
@@ -17,12 +18,21 @@ interface CheckApprovalAndGetApproveTxPayload {
   quantity?: number;
 }
 
+export interface CryptoQuoteParams {
+  /** Network ID (from payment details). */
+  network_id: string;
+  /** Cryptocurrency ID (from payment details). */
+  cryptocurrency_id: string;
+  /** Quantity (for multi-sale payments). Default: 1. */
+  quantity?: string;
+}
 
 export interface CustomerDataPayload {
   name?: string;
   email?: string;
   phone?: string;
   shipping_address?: string;
+  [key: string]: any;
 }
 
 interface PreparePaymentTransactionPayload {
@@ -36,6 +46,8 @@ interface PreparePaymentTransactionPayload {
   quantity?: number;
   /** Customer details when required by merchant. */
   customer_data?: CustomerDataPayload;
+  /** Quote ID from crypto quote endpoint. */
+  quote_id: string;
 }
 
 
@@ -70,5 +82,9 @@ export const publicPaymentsApi = {
 
   /** @description Check payment status */
   get_checkPaymentStatus: (gatewayPaymentId: string): Promise<get_checkPaymentStatus> =>
-    apiClient.get(`/api/v1/pay/status/${gatewayPaymentId}`)
+    apiClient.get(`/api/v1/pay/status/${gatewayPaymentId}`),
+
+  /** @description Create a short-lived fiat-to-crypto quote for a specific payment option. @param network_id Network ID (from payment details). @param cryptocurrency_id Cryptocurrency ID (from payment details). @param quantity Quantity (for multi-sale payments). Default: 1. */
+  get_cryptoQuote: ({ identifier, params }: { identifier: string, params: CryptoQuoteParams }): Promise<get_cryptoQuote> =>
+    apiClient.get(`/api/v1/pay/${identifier}/quote`, { params })
 };

@@ -15,6 +15,7 @@ export const formatCustomerData = (
     streetName,
     streetNumber,
     zipCode,
+    ...customFields
   } = customerInfoData;
 
   const shipping_address = [streetNumber, streetName, city, zipCode, country]
@@ -26,6 +27,7 @@ export const formatCustomerData = (
     email,
     phone,
     shipping_address: shipping_address || undefined,
+    ...customFields,
   };
 };
 

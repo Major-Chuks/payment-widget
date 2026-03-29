@@ -127,3 +127,19 @@
 .input::placeholder {
     color: var(--Grey-400, #94a3b8);
 }
+
+.inputError {
+    border-color: #ef4444 !important;
+}
+
+.inputError:focus {
+    border-color: #ef4444 !important;
+    background: white;
+}
+
+.errorMessage {
+    color: #ef4444;
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 500;
+}

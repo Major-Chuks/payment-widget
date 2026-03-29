@@ -44,11 +44,13 @@ export const useProcessPayment = ({
     transactionRef?: string;
     error?: string | null;
     txHash?: string;
+    explorerUrl?: string;
   }>({});
 
   const executePayment = async ({
     selectedNetwork,
     selectedToken,
+    quoteId,
     isSolana,
     pd,
     isFormValid,
@@ -99,6 +101,7 @@ export const useProcessPayment = ({
             payer_address: publicKey!.toBase58(),
             network_id: selectedNetwork.id,
             cryptocurrency_id: selectedToken.id,
+            quote_id: quoteId,
             quantity: 1,
             ...(formattedCustomerData
               ? { customer_data: formattedCustomerData }
@@ -143,6 +146,7 @@ export const useProcessPayment = ({
           gatewayPaymentId: submitResult.gateway_payment_id,
           transactionRef: submitResult.transaction_ref,
           txHash: signature,
+          explorerUrl: submitResult.explorer_url,
         });
         setShowStatusModal(true);
       } catch (err) {
@@ -161,6 +165,7 @@ export const useProcessPayment = ({
         payer_address: address!,
         network_id: selectedNetwork.id,
         cryptocurrency_id: selectedToken.id,
+        quote_id: quoteId,
         quantity: 1,
       };
 
