@@ -31,7 +31,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     const [isTouched, setIsTouched] = useState(false);
 
     const isValid = phoneNumber.length === 0 || isValidPhoneNumber(`${selectedCountry.dial_code}${phoneNumber}`, selectedCountry.code as CountryCode);
-    const showError = isTouched && phoneNumber.length > 0 && !isValid;
+    const showError = phoneNumber.length > 0 && !isValid;
 
     const filteredCountries = COUNTRY.filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||

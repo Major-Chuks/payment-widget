@@ -192,7 +192,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
         {quote && (
           <div className={styles.rate}>
-            ≈ {clipAmount(quote.rate, 6)} {quote.target_currency?.toUpperCase()}
+            ≈ {clipAmount(quote.rate, 4)} {quote.target_currency?.toUpperCase()}
           </div>
         )}
       </div>

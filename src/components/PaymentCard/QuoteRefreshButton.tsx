@@ -59,7 +59,7 @@ export const QuoteRefreshButton: React.FC<QuoteRefreshButtonProps> = ({
                     style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
                 />
             </svg>
-            <span className={styles.countdownLabel}>{secondsLeft}s</span>
+            <span className={styles.countdownLabel}>Refresh in {secondsLeft}s</span>
         </button>
     );
 };

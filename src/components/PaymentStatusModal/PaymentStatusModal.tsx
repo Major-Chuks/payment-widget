@@ -60,17 +60,28 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
     const isFailed = status === "failed";
     const isProcessing = status === "submitted" || status === "pending";
 
+    const handleClose = () => {
+        if (!isProcessing) onClose();
+    };
+
     return (
-        <Dialog.Root open={isOpen} onOpenChange={onClose}>
+        <Dialog.Root open={isOpen} onOpenChange={(open) => {
+            if (!open) handleClose();
+        }}>
             <Dialog.Portal>
                 <Dialog.Overlay className={styles.modalOverlay} />
                 <Dialog.Content
                     className={styles.modal}
                     onInteractOutside={(e) => e.preventDefault()}
+                    onEscapeKeyDown={(e) => {
+                        if (isProcessing) e.preventDefault();
+                    }}
                 >
-                    <button className={styles.closeBtn} onClick={onClose}>
-                        <CloseIcon />
-                    </button>
+                    {!isProcessing && (
+                        <button className={styles.closeBtn} onClick={handleClose}>
+                            <CloseIcon />
+                        </button>
+                    )}
 
                     <div className={styles.statusIcon}>
                         {isFailed ? (
@@ -131,13 +142,15 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
                     </div>
 
                     <div className={styles.actions}>
-                        <Button
-                            variant="secondary"
-                            className={styles.closeModalBtn}
-                            onClick={onClose}
-                        >
-                            Close
-                        </Button>
+                        {!isProcessing && (
+                            <Button
+                                variant="secondary"
+                                className={styles.closeModalBtn}
+                                onClick={handleClose}
+                            >
+                                Close
+                            </Button>
+                        )}
                         {isFailed && onRetry && (
                             <Button variant="primary" onClick={onRetry}>
                                 Retry Payment
