@@ -92,6 +92,13 @@
   margin-bottom: 8px;
 }
 
+.balance>div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 .balance span {
   color: var(--Grey-900, #0c0c0e);
   font-size: 12px;

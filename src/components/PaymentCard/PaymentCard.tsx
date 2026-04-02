@@ -18,6 +18,7 @@ import { CustomerInfo, get_paymentDetailsForPayer } from "@/api-services/types/p
 import { get_cryptoQuote } from "@/api-services/types/publicPayments/get_cryptoQuote";
 import { clipAmount } from "@/utils";
 import { QuoteRefreshButton } from "./QuoteRefreshButton";
+import { Tooltip } from "../Tooltip/Tooltip";
 
 interface PaymentCardProps {
   isWalletConnected: boolean;
@@ -161,7 +162,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       {isWalletConnected && (nativeBalance !== null && nativeBalance !== undefined) && (
         <div className={styles.balance}>
           <div>
-            {isNativeToken ? "Available Balance" : "Network Balance"}:{" "}
+            {isNativeToken ? "Available Balance" : "Network Balance"}  <Tooltip text="This balance covers the gas fees required by the network to process your transactions." /> :{" "}
             <span>
               {clipAmount(nativeBalance)} {nativeSymbol}
             </span>
