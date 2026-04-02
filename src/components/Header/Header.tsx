@@ -8,7 +8,7 @@ import CheckIconRound from "@/assets/CheckIconRound";
 import Button from "../Button/Button";
 import { formatAddress } from "@/utils";
 import SignOutIcon from "@/assets/SignOutIcon";
-import { useDisconnect } from "wagmi";
+import { useDisconnect, useAppKit, useAppKitNetwork } from '@reown/appkit/react'
 import { Copy } from "../Copy/Copy";
 
 interface HeaderProps {
@@ -23,11 +23,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [disconnect, setDisconnect] = useState(false);
 
-  const disconnectAccount = useDisconnect();
+  const { disconnect: disconnectAccount } = useDisconnect();
 
   const handleDisconnect = async () => {
     try {
-      await disconnectAccount.mutateAsync();
+      await disconnectAccount();
       setDisconnect(false);
     } catch (e) {
       console.error(e);
@@ -45,9 +45,8 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
           <div className={styles.switchContainer}>
             <div
-              className={`${styles.switchItem} ${
-                !disconnect ? styles.active : ""
-              }`}
+              className={`${styles.switchItem} ${!disconnect ? styles.active : ""
+                }`}
             >
               <span className={styles.walletAddress}>
                 <span className={styles.addressIcon}>
@@ -59,9 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div
-              className={`${styles.switchItem} ${
-                disconnect ? styles.active : ""
-              }`}
+              className={`${styles.switchItem} ${disconnect ? styles.active : ""
+                }`}
             >
               <Button onClick={handleDisconnect} className={styles.disconnect}>
                 <span className={styles.signOutIcon}>

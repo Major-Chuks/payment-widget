@@ -28,10 +28,6 @@ export const AdditionalInformation: React.FC<AdditionalInformationProps> = ({
         // System Fields
         const sys = customerInfo.system;
         if (sys.name_and_shipping) {
-            // If name_and_shipping is present, we check if it's required (== "1")
-            // If it is required, check sub-fields.
-            // If it is NOT required ("0"), we still render it, but fields are optional?
-            // User requirement: "If item is required... disable pay button"
             const required = sys.name_and_shipping.required === "1";
 
             if (required) {
@@ -50,7 +46,7 @@ export const AdditionalInformation: React.FC<AdditionalInformationProps> = ({
         // Custom Fields
         if (customerInfo.custom) {
             for (const field of customerInfo.custom) {
-                if (field.required === "1" && !data[field.key]) return false;
+                if (field.required && !data[field.key]) return false;
             }
         }
 

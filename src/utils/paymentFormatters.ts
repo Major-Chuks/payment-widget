@@ -1,4 +1,6 @@
 import { CustomerDataPayload } from "@/api-services/definitions/publicPayments";
+import { CryptoOption } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import { evmNetworkSlugs, solanaNetworkSlugs } from "@/config";
 
 export const formatCustomerData = (
   requiresCustomerInfo: boolean | undefined,
@@ -47,4 +49,51 @@ export const decodeBase64Tx = (base64Tx: string): Uint8Array => {
   } else {
     return Uint8Array.from(Buffer.from(base64Tx, "base64"));
   }
+};
+
+export interface TokenConfig {
+  symbol: string;
+  decimals: number;
+  logoUrl?: string;
+  chain: 'solana' | 'evm';
+  mint?: string;      // Solana
+  address?: string;   // EVM
+}
+
+export const formatBackendTokens = (cryptoOptions: CryptoOption[]) => {
+  const evmTokens: TokenConfig[] = [];
+  const solanaTokens: TokenConfig[] = [];
+
+  cryptoOptions.forEach((token) => {
+    const symbol = token.slug.toUpperCase();
+    const logoUrl = token.logo;
+
+    const isStablecoin = ['USDC', 'USDT'].includes(symbol);
+    const evmDecimals = isStablecoin ? 6 : 18;
+    const solDecimals = isStablecoin ? 6 : 9;
+
+    token.networks.forEach((network) => {
+      if (!network.token_address) return;
+
+      if (solanaNetworkSlugs.includes(network.slug)) {
+        solanaTokens.push({
+          chain: "solana",
+          symbol,
+          mint: network.token_address,
+          decimals: solDecimals,
+          logoUrl,
+        });
+      } else if (evmNetworkSlugs.includes(network.slug)) {
+        evmTokens.push({
+          chain: "evm",
+          symbol,
+          address: network.token_address,
+          decimals: evmDecimals,
+          logoUrl,
+        });
+      }
+    });
+  });
+
+  return { evmTokens, solanaTokens };
 };

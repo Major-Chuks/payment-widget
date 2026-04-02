@@ -1,118 +1,73 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useMemo } from "react";
-import {
-  useConnection,
-  usePublicClient,
-  useSendTransaction,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
-import { BaseError, erc20Abi, parseEther, parseUnits } from "viem";
+import { useAppKitNetwork } from "@reown/appkit/react";
+import { useSPLTransfer } from "./useSPLTransfer";
+import { useEVMTransfer } from "./useEVMTransfer";
+import type { TokenConfig } from "@/constants/tokens";
 
-export interface TransferParams {
-  toAddress: string;
-  amount: string;
-  tokenContract?: string; // If undefined, transfers native token
+export type ChainType = 'solana' | 'evm';
+
+export interface NormalizedTransfer {
+    address: string | undefined;
+    isConnected: boolean;
+    nativeBalance: number | null;
+    nativeSymbol: string;
+    tokenBalances: { symbol: string; contractAddress: string; balance: number; logoUrl?: string }[];
+    supportedTokens: TokenConfig[];
+    loading: boolean;
+    error: string | null;
+    chain: ChainType;
+    fetchBalances: () => Promise<void>;
+    sendNative: (to: string, amount: number) => Promise<{ signature: string; explorerUrl: string }>;
+    sendToken: (token: TokenConfig, to: string, amount: number) => Promise<{ signature: string; explorerUrl: string }>;
 }
 
-export interface UseTransferReturn {
-  transfer: (params: TransferParams) => Promise<void>;
-  isTransferring: boolean;
-  isWaitingForReceipt: boolean;
-  isSuccess: boolean;
-  transactionHash?: string;
-  receipt?: any;
-  error?: BaseError;
-  reset: () => void;
+export interface UseTransferParams {
+    solanaTokens?: TokenConfig[];
+    evmTokens?: TokenConfig[];
 }
 
-export const useTransfer = (): UseTransferReturn => {
-  const publicClient = usePublicClient();
-  const { address, isConnected } = useConnection();
+export function useTransfer({ solanaTokens = [], evmTokens = [] }: UseTransferParams = {}): NormalizedTransfer {
+    const { caipNetwork } = useAppKitNetwork();
 
-  // ✅ Mutation-style hooks (correct for wagmi v3+)
-  const sendTx = useSendTransaction();
-  const writeTx = useWriteContract();
+    // Hooks are unconditionally called with the dynamic token arrays
+    const solana = useSPLTransfer(solanaTokens);
+    const evm = useEVMTransfer(evmTokens);
 
-  const nativeHash = sendTx.data;
-  const erc20Hash = writeTx.data;
+    const isSolana = caipNetwork?.caipNetworkId?.startsWith("solana:");
 
-  // Wait for receipt
-  const {
-    data: receipt,
-    isLoading: isWaitingForReceipt,
-    isSuccess,
-  } = useWaitForTransactionReceipt({
-    hash: nativeHash ?? erc20Hash,
-  });
+    if (isSolana) {
+        return {
+            address: solana.address,
+            isConnected: solana.isConnected,
+            nativeBalance: solana.solBalance,
+            nativeSymbol: "SOL",
+            tokenBalances: solana.tokenBalances.map((t) => ({
+                symbol: t.symbol,
+                contractAddress: t.mint,
+                balance: t.balance,
+                logoUrl: t.logoUrl,
+            })),
+            supportedTokens: solanaTokens,
+            loading: solana.loading,
+            error: solana.error,
+            chain: "solana",
+            fetchBalances: solana.fetchBalances,
+            sendNative: solana.sendSOL,
+            sendToken: solana.sendToken,
+        };
+    }
 
-  // Transfer function
-  const transfer = useCallback(
-    async ({ toAddress, amount, tokenContract }: TransferParams) => {
-      // Validation
-      if (!address) throw new Error("Wallet not connected");
-      if (!isConnected) throw new Error("Please reconnect your wallet");
-      if (!toAddress) throw new Error("Invalid recipient address");
-      if (!amount || parseFloat(amount) <= 0) throw new Error("Invalid amount");
-
-      try {
-        if (!tokenContract) {
-          // ✅ Native token transfer
-          await sendTx.mutateAsync({
-            to: toAddress as `0x${string}`,
-            value: parseEther(amount),
-          });
-        } else {
-          // ✅ ERC20 transfer
-          let decimals = 18;
-
-          if (publicClient) {
-            try {
-              decimals = await publicClient.readContract({
-                address: tokenContract as `0x${string}`,
-                abi: erc20Abi,
-                functionName: "decimals",
-              });
-            } catch (err) {
-              console.warn("Failed to read decimals, defaulting to 18", err);
-            }
-          }
-
-          const parsedAmount = parseUnits(amount, decimals);
-
-          await writeTx.mutateAsync({
-            address: tokenContract as `0x${string}`,
-            abi: erc20Abi,
-            functionName: "transfer",
-            args: [toAddress as `0x${string}`, parsedAmount],
-          });
-        }
-      } catch (err) {
-        throw err as BaseError;
-      }
-    },
-    [address, isConnected, publicClient, sendTx, writeTx]
-  );
-
-  // Reset function
-  const reset = useCallback(() => {
-    sendTx.reset();
-    writeTx.reset();
-  }, [sendTx, writeTx]);
-
-  // ✅ Derived error (no mirrored state)
-  const error = useMemo<BaseError | undefined>(() => {
-    return (sendTx.error || writeTx.error) as BaseError | undefined;
-  }, [sendTx.error, writeTx.error]);
-
-  return {
-    transfer,
-    isTransferring: sendTx.isPending || writeTx.isPending,
-    isWaitingForReceipt,
-    isSuccess,
-    transactionHash: nativeHash ?? erc20Hash,
-    receipt,
-    error,
-    reset,
-  };
-};
+    return {
+        address: evm.address,
+        isConnected: evm.isConnected,
+        nativeBalance: evm.nativeBalance,
+        nativeSymbol: "ETH",
+        tokenBalances: evm.tokenBalances,
+        supportedTokens: evmTokens,
+        loading: evm.loading,
+        error: evm.error,
+        chain: "evm",
+        fetchBalances: evm.fetchBalances,
+        sendNative: evm.sendNative,
+        sendToken: evm.sendToken,
+    };
+}

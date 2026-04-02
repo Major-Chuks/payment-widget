@@ -1,19 +1,15 @@
-"use client";
+'use client'
 
-import React, { ReactNode } from "react";
-import { AppKitNetwork } from "@reown/appkit/networks";
-import { createAppKit } from "@reown/appkit/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type Config, WagmiProvider, cookieToInitialState } from "wagmi";
-import { networks, projectId, wagmiAdapter } from "@/config/wagmi.config";
-import SolanaProvider from "@/providers/SolanaProvider";
+import { solanaWeb3JsAdapter, projectId, networks, wagmiAdapter } from '@/config'
+import { createAppKit } from '@reown/appkit/react'
+import React, { type ReactNode } from 'react'
+import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const queryClient = new QueryClient();
+// Set up queryClient
+const queryClient = new QueryClient()
 
-if (!projectId) {
-  throw new Error("Project ID is not defined");
-}
-
+// Set up metadata
 const metadata = {
   name: "Orki-Money",
   description: "Swap",
@@ -21,39 +17,30 @@ const metadata = {
   icons: ["https://orki-money.vercel.app/_next/static/media/logo.2ff79353.svg"],
 };
 
-createAppKit({
-  adapters: [wagmiAdapter],
-  projectId,
-  networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
-  defaultNetwork: networks[0] as unknown as AppKitNetwork,
-  metadata,
-  themeMode: "light",
-});
 
-function ContextProvider({
-  children,
-  cookies,
-}: {
-  children: ReactNode;
-  cookies: string | null;
-}) {
-  const initialState = cookieToInitialState(
-    wagmiAdapter.wagmiConfig as Config,
-    cookies,
-  );
+// Create the modal
+export const modal = createAppKit({
+  adapters: [solanaWeb3JsAdapter, wagmiAdapter],
+  projectId,
+  networks,
+  metadata,
+  themeMode: 'light',
+  features: {
+    analytics: true
+  },
+  themeVariables: {
+    '--w3m-accent': '#000000',
+  }
+})
+
+function ContextProvider({ children, cookies }: { children: ReactNode, cookies: string | null }) {
+  const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, cookies)
 
   return (
-    <WagmiProvider
-      config={wagmiAdapter.wagmiConfig as Config}
-      initialState={initialState}
-    >
-      <SolanaProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      </SolanaProvider>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
-  );
+  )
 }
 
-export default ContextProvider;
+export default ContextProvider

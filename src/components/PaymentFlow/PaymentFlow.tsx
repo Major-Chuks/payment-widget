@@ -1,149 +1,142 @@
-"use client";
+'use client'
 
-import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import {
-  useConnection,
-  useConfig,
-  useSendTransaction,
-  useSwitchChain,
-} from "wagmi";
-import { useAppKit } from "@reown/appkit/react";
-import {
-  useWallet,
-  useConnection as useSolanaConnection,
-} from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Toaster, toast } from "sonner";
-
-import { useGetCryptoQuoteQuery, useGetPaymentDetailsForPayerQuery } from "@/api-services/generated";
-
-import { Header } from "../Header/Header";
-import { ProductCard } from "../ProductCard/ProductCard";
-import { PaymentCard } from "../PaymentCard/PaymentCard";
-import { SuccessModal } from "../SuccessModal/SuccessModal";
-import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
-import { LoadingState } from "../LoadingState/LoadingState";
-import { ErrorState } from "../ErrorState/ErrorState";
-import { SelectorOption } from "../DropdownSelector/DropdownSelector";
-import styles from "./PaymentFlow.module.css";
-import { useProcessPayment } from "@/hooks/useProcessPayment";
-import { useConnectionWatcher } from "@/hooks/useConnectionWatcher";
-import { usePaymentPolling } from "@/hooks/usePaymentPolling";
+import React, { useState, useEffect } from 'react'
+import styles from './PaymentFlow.module.css'
+import { useParams } from 'next/navigation'
+import { useAppKit, useAppKitNetwork, useDisconnect } from '@reown/appkit/react'
+import { toast, Toaster } from 'sonner'
+import { useGetCryptoQuoteQuery, useGetPaymentDetailsForPayerQuery } from '@/api-services/generated'
+import { Header } from '../Header/Header'
+import { ProductCard } from '../ProductCard/ProductCard'
+import { PaymentCard } from '../PaymentCard/PaymentCard'
+import { SuccessModal } from '../SuccessModal/SuccessModal'
+import { PaymentStatusModal } from '../PaymentStatusModal/PaymentStatusModal'
+import { LoadingState } from '../LoadingState/LoadingState'
+import { ErrorState } from '../ErrorState/ErrorState'
+import { SelectorOption } from '../DropdownSelector/DropdownSelector'
+import { findAppKitNetwork } from '@/utils/networkMapping'
+import { useExecutePayment } from './useExecutePayment'
+import { useTransfer } from '@/hooks/useTransfer'
+import { formatBackendTokens } from '@/utils/paymentFormatters'
+import { usePaymentPolling } from '@/hooks/usePaymentPolling'
 
 const PaymentFlow: React.FC = () => {
-  const params = useParams();
-  const identifier = params?.identifier as string;
-
-  const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier);
-
+  const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(null)
+  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption | null>(null)
+  const [customerInfoData, setCustomerInfoData] = useState<Record<string, string>>({})
+  const [isFormValid, setIsFormValid] = useState(false)
+  const [quoteId, setQuoteId] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [customerInfoData, setCustomerInfoData] = useState<Record<string, string>>({});
-  const [isFormValid, setIsFormValid] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState<SelectorOption | null>(null);
-  const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(null);
-  const [quoteId, setQuoteId] = useState<string | null>(null);
-  const [isAwaitingConnection, setIsAwaitingConnection] = useState(false);
 
-  const { open: openEvmModal } = useAppKit();
-  const { address, isConnected, connector, chainId } = useConnection();
-  const config = useConfig();
-  const sendTransaction = useSendTransaction();
-  const switchChain = useSwitchChain();
+  const params = useParams()
+  const identifier = params?.identifier as string
+  const { data: pd, isLoading, isError } = useGetPaymentDetailsForPayerQuery(identifier)
 
-  const { sendTransaction: sendSolanaTransaction, publicKey } = useWallet();
-  const { connection: solanaConnection } = useSolanaConnection();
-  const { setVisible: setSolanaModalVisible } = useWalletModal();
+  const {
+    address, nativeBalance, nativeSymbol,
+    tokenBalances, isConnected, chain,
+  } = useTransfer({
+    solanaTokens: formatBackendTokens(pd?.crypto_options ?? []).solanaTokens,
+    evmTokens: formatBackendTokens(pd?.crypto_options ?? []).evmTokens
+  });
 
-  const { data: quote, refetch: refetchQuote } = useGetCryptoQuoteQuery({ identifier, params: { network_id: selectedNetwork?.id || "", cryptocurrency_id: selectedToken?.id || "" } }, { enabled: !!selectedNetwork && !!selectedToken });
+  const { open } = useAppKit()
+  const { switchNetwork } = useAppKitNetwork()
+  const { disconnect } = useDisconnect();
+
+  const tokenBalance = tokenBalances.find(t => t.symbol.toLowerCase() === selectedToken?.symbol?.toLowerCase())?.balance ?? 0
+  const tokenSymbol = tokenBalances.find(t => t.symbol.toLowerCase() === selectedToken?.symbol?.toLowerCase())?.symbol ?? ''
 
   const {
     isPaying,
     paymentStep,
-    executePayment,
     showStatusModal,
-    setShowStatusModal,
     paymentStatus,
-    setPaymentStatus,
     paymentStatusDetails,
+    setShowStatusModal,
+    setPaymentStatus,
     setPaymentStatusDetails,
-  } = useProcessPayment({
-    identifier,
-    config,
-    sendTransaction,
-    switchChain,
-    sendSolanaTransaction,
-    solanaConnection,
-  });
+    executePayment,
+  } = useExecutePayment()
 
-  const isSolana =
-    selectedNetwork?.name?.toString()?.toLowerCase().includes("solana") || false;
+  const { data: quote, refetch: refetchQuote } = useGetCryptoQuoteQuery(
+    {
+      identifier,
+      params: {
+        network_id: selectedNetwork?.id ?? '',
+        cryptocurrency_id: selectedToken?.id ?? '',
+      },
+    },
+    { enabled: !!selectedNetwork && !!selectedToken }
+  )
 
-  const recipientAddress =
-    selectedNetwork && pd
-      ? pd.recipients.find((r) => r.network.id === selectedNetwork.id)?.wallet_address || ""
-      : "";
+  const recipientAddress = selectedNetwork && pd
+    ? pd.recipients.find(r => r.network.id === selectedNetwork.id)?.wallet_address ?? ''
+    : ''
 
-  const handlePay = () => {
-    executePayment({
-      selectedNetwork,
-      selectedToken,
-      quoteId,
-      isSolana,
-      pd,
-      isFormValid,
-      customerInfoData,
-      address,
-      publicKey,
-      chainId,
-      triggerEvmModal: openEvmModal,
-      triggerSolanaModal: () => setSolanaModalVisible(true),
-      setIsAwaitingConnection,
-    });
+  const handleConnectWallet = async () => {
+    try {
+      await disconnect();
+      open();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  useEffect(() => {
-    if (!selectedToken && pd?.crypto_options?.[0]) {
-      const opt = pd.crypto_options[0];
-      const token: SelectorOption = {
-        id: opt.id,
-        name: opt.slug.toUpperCase(),
-        subtitle: opt.title,
-        icon: opt.logo,
-        symbol: opt.slug.toUpperCase(),
-        networks: opt.networks,
-      };
-      setSelectedToken(token);
+  const handleTokenSelect = (token: SelectorOption) => {
+    setSelectedToken(token)
+    setSelectedNetwork(null)
+  }
 
-      if (opt.networks?.[0]) {
-        const net = opt.networks[0];
-        // setSelectedNetwork({ id: net.id, name: net.title, icon: net.logo });
-      }
+  const handleNetworkSelect = (option: SelectorOption | null) => {
+    setSelectedNetwork(option)
+  }
+
+  const handlePay = () => {
+    if (!address) {
+      toast.error("Please connect your wallet")
+      return
     }
-  }, [pd, selectedToken]);
 
-  useEffect(() => {
-    if (selectedToken && !selectedNetwork && selectedToken.networks?.[0]) {
-      const net = selectedToken.networks[0];
-      // setSelectedNetwork({ id: net.id, name: net.title, icon: net.logo });
+    if (!selectedNetwork?.id) {
+      toast.error("Please select a network")
+      return
     }
-  }, [selectedToken, selectedNetwork]);
 
-  useConnectionWatcher({
-    isAwaitingConnection,
-    setIsAwaitingConnection,
-    isSolanaReady: isSolana && !!publicKey,
-    isEvmReady: !isSolana && !!address,
-    onReady: () => handlePay(),
-  });
+    if (!selectedToken?.id) {
+      toast.error("Please select a token")
+      return
+    }
+
+    if (!quoteId) {
+      toast.error("Please refresh quote")
+      return
+    }
+
+    if (!pd) {
+      toast.error("Payment details not found")
+      return
+    }
+
+    executePayment({
+      payerAddress: address,
+      networkId: selectedNetwork?.id,
+      tokenId: selectedToken?.id,
+      quoteId: quoteId,
+      pd,
+      customerInfoData,
+      isSolana: chain?.toLowerCase() === 'solana',
+      identifier
+    })
+  }
 
   usePaymentPolling({
     showStatusModal,
     paymentStatus,
     gatewayPaymentId: paymentStatusDetails.gatewayPaymentId,
-    onSuccess: (txHash) => {
+    onSuccess: ({ txHash, explorerUrl }) => {
       setShowStatusModal(false);
-      setPaymentStatusDetails((prev) => ({ ...prev, txHash }));
+      setPaymentStatusDetails((prev) => ({ ...prev, txHash, explorerUrl }));
       setShowSuccessModal(true);
       toast.success("Payment confirmed!");
     },
@@ -153,30 +146,56 @@ const PaymentFlow: React.FC = () => {
     },
   });
 
+  // Auto-select first token on load
   useEffect(() => {
-    if (quote) {
-      setQuoteId(quote.quote_id);
+    if (!pd?.crypto_options?.[0] || selectedToken) return
+    const opt = pd.crypto_options[0]
+    setSelectedToken({
+      id: opt.id,
+      name: opt.slug.toUpperCase(),
+      subtitle: opt.title,
+      icon: opt.logo,
+      symbol: opt.slug.toUpperCase(),
+      networks: opt.networks,
+    })
+  }, [pd])
+
+
+  // Switch AppKit network once when selectedNetwork is set
+  useEffect(() => {
+    if (!selectedNetwork) return
+
+    const appKitNetwork = findAppKitNetwork(selectedNetwork.name)
+    if (!appKitNetwork) {
+      toast.error("Selected network is not supported")
+      return
     }
-  }, [quote]);
 
+    switchNetwork(appKitNetwork)
+      .then(() => console.log("Network switched successfully"))
+      .catch(err => console.error('Network switch failed:', err))
+  }, [selectedNetwork])
 
+  useEffect(() => {
+    if (quote) setQuoteId(quote.quote_id)
+  }, [quote])
 
-  if (isLoading) return <LoadingState />;
-  if (!pd || isError)
-    return (
-      <ErrorState
-        message="Failed to load payment details."
-        onRetry={() => window.location.reload()}
-      />
-    );
+  if (isLoading) return <LoadingState />
+  if (!pd || isError) return (
+    <ErrorState
+      message="Failed to load payment details."
+      onRetry={() => window.location.reload()}
+    />
+  )
 
   return (
     <div className={styles.paymentContainer}>
       <Toaster position="top-center" richColors />
+
       <Header
-        isWalletConnected={isSolana ? !!publicKey : isConnected}
-        connectedWallet={isSolana ? "Solana Wallet" : connector?.name || ""}
-        walletAddress={isSolana ? publicKey?.toBase58() : address}
+        isWalletConnected={isConnected}
+        connectedWallet=""
+        walletAddress={address ?? ''}
       />
 
       <div className={styles.content}>
@@ -188,35 +207,36 @@ const PaymentFlow: React.FC = () => {
         />
 
         <PaymentCard
-          isWalletConnected={isSolana ? !!publicKey : isConnected}
+          isWalletConnected={isConnected}
           itemPrice={Number(pd.price) || 0}
           priceDenomination={(
             pd.price_denomination_asset.slug ||
             pd.price_denomination_asset.code ||
-            ""
+            ''
           ).toUpperCase()}
-          onConnectWallet={() =>
-            isSolana ? setSolanaModalVisible(true) : openEvmModal()
-          }
+          onConnectWallet={handleConnectWallet}
           quote={quote}
           refetchQuote={() => {
-            if (!showSuccessModal && !showStatusModal) {
-              refetchQuote()
-            }
+            if (!showStatusModal && !isPaying) refetchQuote()
           }}
           onPay={handlePay}
           isLoading={isPaying}
           loadingText={paymentStep}
           cryptoOptions={pd.crypto_options}
           selectedNetwork={selectedNetwork}
-          onNetworkSelect={setSelectedNetwork}
+          onNetworkSelect={handleNetworkSelect}
           selectedToken={selectedToken}
-          onTokenSelect={setSelectedToken}
+          onTokenSelect={handleTokenSelect}
           requiresCustomerInfo={pd.requires_customer_info}
           customerInfo={pd.customer_info}
           onCustomerInfoChange={setCustomerInfoData}
           isFormValid={isFormValid}
           onValidate={setIsFormValid}
+          nativeBalance={nativeBalance}
+          nativeSymbol={nativeSymbol}
+          tokenBalance={tokenBalance}
+          tokenSymbol={tokenSymbol}
+          isNativeToken={selectedToken?.symbol?.toLowerCase() === nativeSymbol.toLowerCase()}
         />
       </div>
 
@@ -224,28 +244,28 @@ const PaymentFlow: React.FC = () => {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         amount={pd.price}
-        network={selectedNetwork?.name || ""}
-        tokenSymbol={selectedToken?.symbol || "USDC"}
-        txHash={paymentStatusDetails.txHash}
-        fromAddress={isSolana ? publicKey?.toBase58() : address}
+        network={selectedNetwork?.name ?? ''}
+        tokenSymbol={selectedToken?.symbol ?? ''}
+        txHash={paymentStatusDetails.txHash ?? ''}
+        fromAddress={address ?? ''}
         toAddress={recipientAddress}
-        explorerUrl={paymentStatusDetails.explorerUrl || ""}
+        explorerUrl={paymentStatusDetails.explorerUrl ?? ''}
       />
 
       <PaymentStatusModal
         isOpen={showStatusModal}
         onClose={() => setShowStatusModal(false)}
         onRetry={() => {
-          setShowStatusModal(false);
-          handlePay();
+          setShowStatusModal(false)
+          handlePay()
         }}
         status={paymentStatus}
-        gatewayPaymentId={paymentStatusDetails.gatewayPaymentId}
-        transactionRef={paymentStatusDetails.transactionRef}
-        error={paymentStatusDetails.error}
+        gatewayPaymentId={paymentStatusDetails.gatewayPaymentId ?? ''}
+        transactionRef={paymentStatusDetails.transactionRef ?? ''}
+        error={paymentStatusDetails.error ?? ''}
       />
     </div>
-  );
-};
+  )
+}
 
-export default PaymentFlow;
+export default PaymentFlow

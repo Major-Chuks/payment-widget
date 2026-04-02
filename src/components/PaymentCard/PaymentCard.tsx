@@ -15,98 +15,69 @@ import WarningIcon from "@/assets/WarningIcon";
 import usdcIcon from "@/assets/tokens/usdc.svg";
 import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
 import { CustomerInfo, get_paymentDetailsForPayer } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
-import { useConfig, useConnection } from "wagmi";
-import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { get_cryptoQuote } from "@/api-services/types/publicPayments/get_cryptoQuote";
-import { useQuoteCountdown } from "@/hooks/useQuoteCountdown";
 import { clipAmount } from "@/utils";
+import { QuoteRefreshButton } from "./QuoteRefreshButton";
 
 interface PaymentCardProps {
   isWalletConnected: boolean;
   itemPrice: number;
   priceDenomination: string;
   cryptoOptions: get_paymentDetailsForPayer["crypto_options"];
-  onConnectWallet: () => void;
-  onPay: () => void;
   selectedNetwork: SelectorOption | null;
-  onNetworkSelect: (option: SelectorOption | null) => void;
   selectedToken: SelectorOption | null;
-  onTokenSelect: (option: SelectorOption) => void;
   isLoading?: boolean;
   loadingText?: string;
   requiresCustomerInfo: boolean;
   customerInfo: CustomerInfo;
-  onCustomerInfoChange: (data: Record<string, string>) => void;
   isFormValid: boolean;
-  onValidate: (isValid: boolean) => void;
   quote?: get_cryptoQuote;
+  nativeBalance?: number | null;
+  tokenBalance?: number | null;
+  nativeSymbol?: string;
+  tokenSymbol?: string;
+  isNativeToken: boolean;
+  onPay: () => void;
   refetchQuote: () => void;
+  onConnectWallet: () => void;
+  onNetworkSelect: (option: SelectorOption | null) => void;
+  onTokenSelect: (option: SelectorOption) => void;
+  onCustomerInfoChange: (data: Record<string, string>) => void;
+  onValidate: (isValid: boolean) => void;
+
 }
-
-const RADIUS = 8;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
 export const PaymentCard: React.FC<PaymentCardProps> = ({
   isWalletConnected,
   itemPrice,
   priceDenomination,
   cryptoOptions,
-  onConnectWallet,
-  onPay,
   selectedNetwork,
-  onNetworkSelect,
   selectedToken,
-  onTokenSelect,
   isLoading = false,
   loadingText,
   requiresCustomerInfo,
   customerInfo,
-  onCustomerInfoChange,
   isFormValid,
-  onValidate,
   quote,
+  nativeBalance,
+  tokenBalance,
+  nativeSymbol,
+  tokenSymbol,
+  isNativeToken,
+  onPay,
+  onValidate,
   refetchQuote,
+  onTokenSelect,
+  onConnectWallet,
+  onNetworkSelect,
+  onCustomerInfoChange,
 }) => {
-  const { address, chainId } = useConnection();
-  const config = useConfig();
 
-  const [tokenAddress, setTokenAddress] = useState("");
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const quoteReady = !!selectedNetwork && !!selectedToken;
-
-  const { secondsLeft, progress, refresh } = useQuoteCountdown({
-    intervalMs: 30000,
-    onRefresh: refetchQuote,
-    enabled: quoteReady,
-  });
-
-  // Native (ETH/SOL) balance
-  const {
-    balance: nativeBalance,
-    symbol: nativeSymbol,
-    isPending: isNativeBalancePending,
-    fetchBalance: fetchNativeBalance,
-  } = useTokenBalance({
-    address: address || "",
-    chainId: chainId || 1,
-    config,
-  });
-
-  // ERC-20 / SPL token balance
-  const {
-    balance: tokenBalance,
-    symbol: tokenSymbol,
-    isPending: isTokenBalancePending,
-    fetchBalance: fetchTokenBalance,
-  } = useTokenBalance({
-    address: address || "",
-    chainId: chainId || 1,
-    config,
-    contractAddress: tokenAddress || undefined,
-  });
 
   const tokens: SelectorOption[] = cryptoOptions.map((opt) => ({
     id: opt.id,
@@ -126,6 +97,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       id: net.id,
       name: net.title,
       icon: net.logo,
+      symbol: net.slug.toUpperCase(),
     }))
     : [];
 
@@ -138,30 +110,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
     if (typeof window !== "undefined") setCurrentUrl(window.location.href);
   }, []);
 
-  useEffect(() => {
-    if (isWalletConnected && address) fetchNativeBalance();
-  }, [isWalletConnected, address, chainId, fetchNativeBalance]);
-
-  useEffect(() => {
-    if (selectedToken && selectedNetwork) {
-      const addr = selectedToken.networks?.find(
-        (net) => net.id === selectedNetwork.id,
-      )?.token_address ?? "";
-      setTokenAddress(addr);
-    } else {
-      setTokenAddress("");
-    }
-  }, [selectedToken, selectedNetwork]);
-
-  useEffect(() => {
-    if (tokenAddress) fetchTokenBalance();
-  }, [tokenAddress, fetchTokenBalance]);
-
   const fee = 0;
   const totalPrice = itemPrice + fee;
-
-  // Full circle → empty as time elapses
-  const strokeDashoffset = CIRCUMFERENCE * progress;
 
   if (!isWalletConnected) {
     return (
@@ -208,66 +158,30 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         />
       </div>
 
-      <div className={styles.balance}>
-        <div>
-          Network Balance:{" "}
-          <span>
-            {isNativeBalancePending ? "Loading..." : `${clipAmount(nativeBalance)} ${nativeSymbol}`}
-          </span>
-        </div>
-        {tokenBalance !== undefined && (
+      {isWalletConnected && (nativeBalance !== null && nativeBalance !== undefined) && (
+        <div className={styles.balance}>
           <div>
-            Token Balance:{" "}
+            {isNativeToken ? "Available Balance" : "Network Balance"}:{" "}
             <span>
-              {isTokenBalancePending ? "Loading..." : `${clipAmount(tokenBalance)} ${tokenSymbol}`}
+              {clipAmount(nativeBalance)} {nativeSymbol}
             </span>
           </div>
-        )}
-      </div>
+          {tokenBalance !== null && tokenBalance !== undefined && !isNativeToken && (
+            <div>
+              {selectedToken?.name} Balance:{" "}
+              <span>
+                {clipAmount(tokenBalance)} {tokenSymbol}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={styles.priceBreakdown}>
         <div className={styles.priceRow}>
           <span className={styles.priceLabel}>Total Price</span>
 
-          {quoteReady && (
-            <button
-              type="button"
-              className={styles.refreshButton}
-              onClick={refresh}
-            >
-              <svg
-                className={styles.countdownRing}
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                {/* Track */}
-                <circle
-                  cx="10"
-                  cy="10"
-                  r={RADIUS}
-                  fill="none"
-                  strokeWidth="2"
-                  className={styles.countdownTrack}
-                />
-                {/* Draining arc */}
-                <circle
-                  cx="10"
-                  cy="10"
-                  r={RADIUS}
-                  fill="none"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray={CIRCUMFERENCE}
-                  strokeDashoffset={strokeDashoffset}
-                  className={styles.countdownArc}
-                  style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
-                />
-              </svg>
-              <span className={styles.countdownLabel}>{secondsLeft}s</span>
-            </button>
-          )}
+          {quoteReady && <QuoteRefreshButton enabled={quoteReady} onRefresh={refetchQuote} />}
         </div>
 
         <div className={styles.totalAmount}>
@@ -277,7 +191,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
         {quote && (
           <div className={styles.rate}>
-            ≈ {Number(quote.rate)?.toFixed(2)} {quote.target_currency?.toUpperCase()}
+            ≈ {clipAmount(quote.rate, 6)} {quote.target_currency?.toUpperCase()}
           </div>
         )}
       </div>

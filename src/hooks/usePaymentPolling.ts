@@ -5,7 +5,7 @@ interface UsePaymentPollingProps {
   showStatusModal: boolean;
   paymentStatus: string;
   gatewayPaymentId?: string;
-  onSuccess: (txHash?: string) => void;
+  onSuccess: ({ txHash, explorerUrl }: { txHash: string, explorerUrl: string }) => void;
   onFail: (error?: string | null, txHash?: string) => void;
 }
 
@@ -29,10 +29,11 @@ export const usePaymentPolling = ({
           const result =
             await publicPaymentsApi.get_checkPaymentStatus(gatewayPaymentId);
 
+          console.log({ result });
           if (result.status === "confirmed") {
-            onSuccess(result.tx_hash ?? undefined);
+            onSuccess({ txHash: result.tx_hash ?? "", explorerUrl: result.explorer_url ?? "" });
           } else if (result.status === "failed") {
-            onFail(result.error, result.tx_hash ?? undefined);
+            onFail(result.error, result.tx_hash ?? "");
           }
         } catch (error) {
           console.error("Background polling error:", error);

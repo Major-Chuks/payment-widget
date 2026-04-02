@@ -9,4 +9,5 @@ export type get_checkPaymentStatus = {
     error: string | null;
     confirmed_at: string | null;
     created_at: string;
+    explorer_url: string | null;
 }
