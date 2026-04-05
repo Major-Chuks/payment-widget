@@ -133,16 +133,16 @@ const PaymentFlow: React.FC = () => {
   usePaymentPolling({
     showStatusModal,
     paymentStatus,
-    gatewayPaymentId: paymentStatusDetails.gatewayPaymentId,
-    onSuccess: ({ txHash, explorerUrl }) => {
+    gatewayPaymentId: paymentStatusDetails?.gateway_payment_id,
+    onSuccess: (result) => {
       setShowStatusModal(false);
-      setPaymentStatusDetails((prev) => ({ ...prev, txHash, explorerUrl }));
+      setPaymentStatusDetails((prev) => ({ ...prev, ...result }));
       setShowSuccessModal(true);
       toast.success("Payment confirmed!");
     },
     onFail: (error, txHash) => {
       setPaymentStatus("failed");
-      setPaymentStatusDetails((prev) => ({ ...prev, error, txHash }));
+      setPaymentStatusDetails((prev) => ({ ...prev, error: error ?? "Failed to confirm payment", tx_hash: txHash }));
     },
   });
 
@@ -243,13 +243,13 @@ const PaymentFlow: React.FC = () => {
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        amount={pd.price}
+        amount={paymentStatusDetails?.amount_paid ?? "0"}
         network={selectedNetwork?.name ?? ''}
-        tokenSymbol={selectedToken?.symbol ?? ''}
-        txHash={paymentStatusDetails.txHash ?? ''}
+        tokenSymbol={paymentStatusDetails?.denomination ?? ''}
+        txHash={paymentStatusDetails?.tx_hash ?? ''}
         fromAddress={address ?? ''}
         toAddress={recipientAddress}
-        explorerUrl={paymentStatusDetails.explorerUrl ?? ''}
+        explorerUrl={paymentStatusDetails?.explorer_url ?? ''}
       />
 
       <PaymentStatusModal
@@ -260,9 +260,9 @@ const PaymentFlow: React.FC = () => {
           handlePay()
         }}
         status={paymentStatus}
-        gatewayPaymentId={paymentStatusDetails.gatewayPaymentId ?? ''}
-        transactionRef={paymentStatusDetails.transactionRef ?? ''}
-        error={paymentStatusDetails.error ?? ''}
+        gatewayPaymentId={paymentStatusDetails?.gateway_payment_id ?? ''}
+        transactionRef={paymentStatusDetails?.transaction_ref ?? ''}
+        error={paymentStatusDetails?.error ?? ''}
       />
     </div>
   )

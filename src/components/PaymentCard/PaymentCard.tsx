@@ -114,6 +114,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   const fee = 0;
   const totalPrice = itemPrice + fee;
 
+  console.log({ nativeBalance, tokenBalance, nativeSymbol, tokenSymbol, isNativeToken });
+
   if (!isWalletConnected) {
     return (
       <div className={styles.paymentCard}>
@@ -158,7 +160,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           label="Network"
         />
       </div>
-
+      <br />
       {isWalletConnected && (nativeBalance !== null && nativeBalance !== undefined) && (
         <div className={styles.balance}>
           <div>

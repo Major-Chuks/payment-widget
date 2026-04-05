@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { publicPaymentsApi } from "@/api-services/definitions/publicPayments";
+import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus";
 
 interface UsePaymentPollingProps {
   showStatusModal: boolean;
   paymentStatus: string;
   gatewayPaymentId?: string;
-  onSuccess: ({ txHash, explorerUrl }: { txHash: string, explorerUrl: string }) => void;
-  onFail: (error?: string | null, txHash?: string) => void;
+  onSuccess: (result: get_checkPaymentStatus) => void;
+  onFail: (error?: string , tx_hash?: string ) => void;
 }
 
 export const usePaymentPolling = ({
@@ -28,12 +29,10 @@ export const usePaymentPolling = ({
         try {
           const result =
             await publicPaymentsApi.get_checkPaymentStatus(gatewayPaymentId);
-
-          console.log({ result });
           if (result.status === "confirmed") {
-            onSuccess({ txHash: result.tx_hash ?? "", explorerUrl: result.explorer_url ?? "" });
+            onSuccess(result);
           } else if (result.status === "failed") {
-            onFail(result.error, result.tx_hash ?? "");
+            onFail(result.error ?? "", result.tx_hash ?? "");
           }
         } catch (error) {
           console.error("Background polling error:", error);

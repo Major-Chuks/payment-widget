@@ -28,7 +28,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
   onClose,
   amount,
   network,
-  tokenSymbol = "USDC",
+  tokenSymbol,
   txHash,
   fromAddress,
   toAddress,

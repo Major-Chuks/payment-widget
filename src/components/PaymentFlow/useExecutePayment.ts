@@ -10,6 +10,7 @@ import { useAppKitConnection } from '@reown/appkit-adapter-solana/react'
 import type { Provider } from '@reown/appkit-adapter-solana/react'
 import { useSendTransaction } from 'wagmi'
 import { useAppKitProvider } from '@reown/appkit/react'
+import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus"
 
 // Updated interface to match your new payload (networkId and tokenId instead of objects)
 interface ExecutePaymentParams {
@@ -33,13 +34,7 @@ export const useExecutePayment = () => {
   const [paymentStep, setPaymentStep] = useState('')
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<'submitted' | 'pending' | 'confirmed' | 'failed'>('submitted')
-  const [paymentStatusDetails, setPaymentStatusDetails] = useState<{
-    gatewayPaymentId?: string
-    transactionRef?: string
-    error?: string | null
-    txHash?: string
-    explorerUrl?: string
-  }>({})
+  const [paymentStatusDetails, setPaymentStatusDetails] = useState<Partial<get_checkPaymentStatus> | null>(null)
 
   const { mutateAsync: checkApproval } = usePostCheckApprovalAndGetApproveTxMutation()
   const { mutateAsync: preparePayment } = usePostPreparePaymentTransactionMutation()
@@ -98,9 +93,9 @@ export const useExecutePayment = () => {
 
         setPaymentStatus(submitResult.status === 'failed' ? 'failed' : 'pending')
         setPaymentStatusDetails({
-          gatewayPaymentId: submitResult.gateway_payment_id,
-          transactionRef: submitResult.transaction_ref,
-          txHash: signature,
+          gateway_payment_id: submitResult.gateway_payment_id,
+          transaction_ref: submitResult.transaction_ref,
+          tx_hash: signature,
         })
 
         setShowStatusModal(true)
@@ -162,9 +157,9 @@ export const useExecutePayment = () => {
 
       setPaymentStatus(submitResult.status === 'failed' ? 'failed' : 'pending')
       setPaymentStatusDetails({
-        gatewayPaymentId: submitResult.gateway_payment_id,
-        transactionRef: submitResult.transaction_ref,
-        txHash: payHash,
+        gateway_payment_id: submitResult.gateway_payment_id,
+        transaction_ref: submitResult.transaction_ref,
+        tx_hash: payHash,
       })
       setShowStatusModal(true)
     } catch (e) {

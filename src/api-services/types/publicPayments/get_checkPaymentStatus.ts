@@ -1,13 +1,16 @@
 type PaymentStatus = "submitted" | "pending" | "confirmed" | "failed";
 
-export type get_checkPaymentStatus = {
-    gateway_payment_id: string;
-    transaction_ref: string;
-    tx_hash: string | null;
-    status: PaymentStatus;
-    confirmations: number;
-    error: string | null;
-    confirmed_at: string | null;
-    created_at: string;
-    explorer_url: string | null;
+export interface get_checkPaymentStatus {
+  gateway_payment_id: string;
+  transaction_ref: string;
+  tx_hash: string;
+  explorer_url: string;
+  status: PaymentStatus;
+  amount_paid: string;
+  amount_paid_raw: string;
+  denomination: string;
+  confirmations: number;
+  error: string | null;
+  confirmed_at: string;
+  created_at: string;
 }
