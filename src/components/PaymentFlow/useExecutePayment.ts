@@ -12,7 +12,6 @@ import { useSendTransaction } from 'wagmi'
 import { useAppKitProvider } from '@reown/appkit/react'
 import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus"
 
-// Updated interface to match your new payload (networkId and tokenId instead of objects)
 interface ExecutePaymentParams {
   payerAddress: string
   networkId: string
@@ -24,7 +23,6 @@ interface ExecutePaymentParams {
   identifier: string
 }
 
-// 1. Hook no longer takes arguments
 export const useExecutePayment = () => {
   const { walletProvider } = useAppKitProvider<Provider>("solana")
   const { connection } = useAppKitConnection()
@@ -40,7 +38,6 @@ export const useExecutePayment = () => {
   const { mutateAsync: preparePayment } = usePostPreparePaymentTransactionMutation()
   const { mutateAsync: submitPayment } = usePostSubmitPaymentTxHashMutation()
 
-  // 2. executePayment now receives the parameters when called
   const executePayment = async ({
     payerAddress,
     networkId,
@@ -51,14 +48,20 @@ export const useExecutePayment = () => {
     isSolana,
     identifier
   }: ExecutePaymentParams) => {
+    // 1. ROBUST FIX: Strict Guard Clause to prevent double execution
+    if (isPaying) {
+      console.warn('[Payment Execution Blocked] A transaction is already in progress.');
+      return;
+    }
+    
     setIsPaying(true)
 
     const formattedCustomerData = formatCustomerData(pd.requires_customer_info, customerInfoData)
 
     const commonPayload = {
       payer_address: payerAddress,
-      network_id: networkId,     // Updated to use the passed ID directly
-      cryptocurrency_id: tokenId, // Updated to use the passed ID directly
+      network_id: networkId,
+      cryptocurrency_id: tokenId,
       quote_id: quoteId,
       quantity: 1,
       ...(formattedCustomerData ? { customer_data: formattedCustomerData } : {}),
@@ -79,11 +82,40 @@ export const useExecutePayment = () => {
           transaction = Transaction.from(txBuffer)
         }
 
-        const signature = await walletProvider!.sendTransaction(
-          transaction as any,
-          connection as any,
-          { skipPreflight: false, preflightCommitment: 'confirmed' }
-        )
+        let signature: string = '';
+        
+        try {
+          console.log('[Solana Tx] Requesting signature and broadcasting...');
+          
+          // 2. ROBUST FIX: Adjusting RPC parameters to prevent simulation collision
+          signature = await walletProvider!.sendTransaction(
+            transaction as any,
+            connection as any,
+            { 
+              skipPreflight: true, // Prevents RPC simulation which throws the false "already processed" error
+              preflightCommitment: 'confirmed',
+              maxRetries: 0 // Stops aggressive library retries that cause duplicates
+            }
+          );
+          console.log('[Solana Tx] Successfully broadcasted. Signature:', signature);
+          
+        } catch (sendError: any) {
+          // 3. ROBUST FIX: Deep logging to catch it if it somehow reoccurs
+          console.error('[Solana Tx Error] Full Error Object:', sendError);
+          
+          if (sendError.logs) {
+            console.error('[Solana Tx Error] Transaction Logs:', sendError.logs);
+          }
+
+          const errorMessage = sendError?.message || String(sendError);
+          if (errorMessage.includes('already been processed')) {
+             console.warn('[Solana Tx Sync] Caught "already processed" error. The transaction likely succeeded on-chain, but the client RPC panicked.');
+             // We throw a cleaner error here to prevent passing an empty signature to the backend
+             throw new Error("Transaction processed successfully, but encountered a sync delay. Please check your wallet history.");
+          }
+          
+          throw sendError; // Re-throw standard user rejections/insufficient funds
+        }
 
         setPaymentStep('Finalizing payment...')
         const submitResult = await submitPayment({
@@ -100,6 +132,7 @@ export const useExecutePayment = () => {
 
         setShowStatusModal(true)
       } catch (err) {
+        console.error('[Solana Payment Flow] Failed:', err);
         toast.error('Payment failed: ' + (err as Error).message)
       } finally {
         setIsPaying(false)
@@ -108,7 +141,7 @@ export const useExecutePayment = () => {
       return
     }
 
-    // EVM flow
+    // EVM flow (Kept exact same)
     try {
       setPaymentStep('Checking token approval...')
       const approvalResult = await checkApproval({ identifier, payload: commonPayload })
@@ -117,7 +150,6 @@ export const useExecutePayment = () => {
         setPaymentStep('Approving token spend...')
         const { tx } = approvalResult.approve_tx
 
-        // Note: Ensure sendTransactionAsync is defined in scope
         const approveHash = await sendTransactionAsync({
           to: tx.to as `0x${string}`,
           data: tx.data as `0x${string}`,
@@ -163,6 +195,7 @@ export const useExecutePayment = () => {
       })
       setShowStatusModal(true)
     } catch (e) {
+      console.error('[EVM Payment Flow] Failed:', e);
       toast.error('Payment failed: ' + (e as Error).message)
     } finally {
       setIsPaying(false)

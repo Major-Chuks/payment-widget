@@ -14,7 +14,10 @@ import qrcodeIcon from "@/assets/qrcode-icon.svg";
 import WarningIcon from "@/assets/WarningIcon";
 import usdcIcon from "@/assets/tokens/usdc.svg";
 import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
-import { CustomerInfo, get_paymentDetailsForPayer } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import {
+  CustomerInfo,
+  get_paymentDetailsForPayer,
+} from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 import { get_cryptoQuote } from "@/api-services/types/publicPayments/get_cryptoQuote";
 import { clipAmount } from "@/utils";
 import { QuoteRefreshButton } from "./QuoteRefreshButton";
@@ -45,7 +48,6 @@ interface PaymentCardProps {
   onTokenSelect: (option: SelectorOption) => void;
   onCustomerInfoChange: (data: Record<string, string>) => void;
   onValidate: (isValid: boolean) => void;
-
 }
 export const PaymentCard: React.FC<PaymentCardProps> = ({
   isWalletConnected,
@@ -73,7 +75,6 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   onNetworkSelect,
   onCustomerInfoChange,
 }) => {
-
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -95,11 +96,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
   const networks: SelectorOption[] = selectedCryptoOption
     ? selectedCryptoOption.networks.map((net) => ({
-      id: net.id,
-      name: net.title,
-      icon: net.logo,
-      symbol: net.slug.toUpperCase(),
-    }))
+        id: net.id,
+        name: net.title,
+        icon: net.logo,
+        symbol: net.slug.toUpperCase(),
+      }))
     : [];
 
   const handleTokenSelect = (token: SelectorOption) => {
@@ -113,8 +114,6 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
   const fee = 0;
   const totalPrice = itemPrice + fee;
-
-  console.log({ nativeBalance, tokenBalance, nativeSymbol, tokenSymbol, isNativeToken });
 
   if (!isWalletConnected) {
     return (
@@ -161,30 +160,38 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         />
       </div>
       <br />
-      {isWalletConnected && (nativeBalance !== null && nativeBalance !== undefined) && (
-        <div className={styles.balance}>
-          <div>
-            {isNativeToken ? "Available Balance" : "Network Balance"}  <Tooltip text="This balance covers the gas fees required by the network to process your transactions." /> :{" "}
-            <span>
-              {clipAmount(nativeBalance)} {nativeSymbol}
-            </span>
-          </div>
-          {tokenBalance !== null && tokenBalance !== undefined && !isNativeToken && (
+      {isWalletConnected &&
+        nativeBalance !== null &&
+        nativeBalance !== undefined && (
+          <div className={styles.balance}>
             <div>
-              {selectedToken?.name} Balance:{" "}
+              {isNativeToken ? "Available Balance" : "Network Balance"}{" "}
+              <Tooltip text="This balance covers the gas fees required by the network to process your transactions." />{" "}
+              :{" "}
               <span>
-                {clipAmount(tokenBalance)} {tokenSymbol}
+                {clipAmount(nativeBalance)} {nativeSymbol}
               </span>
             </div>
-          )}
-        </div>
-      )}
+            {tokenBalance !== null &&
+              tokenBalance !== undefined &&
+              !isNativeToken && (
+                <div>
+                  {selectedToken?.name} Balance:{" "}
+                  <span>
+                    {clipAmount(tokenBalance)} {tokenSymbol}
+                  </span>
+                </div>
+              )}
+          </div>
+        )}
 
       <div className={styles.priceBreakdown}>
         <div className={styles.priceRow}>
           <span className={styles.priceLabel}>Total Price</span>
 
-          {quoteReady && <QuoteRefreshButton enabled={quoteReady} onRefresh={refetchQuote} />}
+          {quoteReady && (
+            <QuoteRefreshButton enabled={quoteReady} onRefresh={refetchQuote} />
+          )}
         </div>
 
         <div className={styles.totalAmount}>
@@ -194,7 +201,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
         {quote && (
           <div className={styles.rate}>
-            ≈ {clipAmount(quote.rate, 4)} {quote.target_currency?.toUpperCase()}
+            ≈ {clipAmount(quote.target_amount, 4)}{" "}
+            {quote.target_currency?.toUpperCase()}
           </div>
         )}
       </div>
@@ -226,11 +234,19 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         />{" "}
         <span>
           I agree to the{" "}
-          <a href="https://orki-money.vercel.app/terms-of-use" target="_blank" rel="noreferrer noopener">
+          <a
+            href="https://orki-money.vercel.app/terms-of-use"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
             Terms & Conditions
           </a>{" "}
           and{" "}
-          <a href="https://orki-money.vercel.app/privacy-policy" target="_blank" rel="noreferrer noopener">
+          <a
+            href="https://orki-money.vercel.app/privacy-policy"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
             Privacy Policy.
           </a>
         </span>
@@ -239,7 +255,10 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       <Button
         variant="primary"
         onClick={onPay}
-        disabled={isLoading || (requiresCustomerInfo && !isFormValid) || !agreedToTerms}
+        // Ensures double-clicks are physically disabled while `isLoading` (mapped to isPaying) is true
+        disabled={
+          isLoading || (requiresCustomerInfo && !isFormValid) || !agreedToTerms
+        }
       >
         {isLoading ? loadingText || "PROCESSING..." : "PAY"}
       </Button>
