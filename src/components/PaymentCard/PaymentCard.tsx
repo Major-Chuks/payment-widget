@@ -78,6 +78,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isSufficientBalance, setIsSufficientBalance] = useState(true);
 
   const quoteReady = !!selectedNetwork && !!selectedToken;
 
@@ -111,6 +112,16 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   useEffect(() => {
     if (typeof window !== "undefined") setCurrentUrl(window.location.href);
   }, []);
+
+  useEffect(() => {
+    if (quote && quoteReady) {
+      const rentFee = 0.0021;
+      const compareAmount = isNativeToken ? nativeBalance : tokenBalance;
+      setIsSufficientBalance(
+        Number(compareAmount) > Number(quote.target_amount) + rentFee,
+      );
+    }
+  }, [quote, nativeBalance, tokenBalance, quoteReady]);
 
   const fee = 0;
   const totalPrice = itemPrice + fee;
@@ -207,10 +218,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         )}
       </div>
 
-      {false && (
+      {!isSufficientBalance && (
         <div className={styles.error}>
-          <WarningIcon /> Insufficient {priceDenomination} balance to create
-          token account
+          <WarningIcon /> Insufficient{" "}
+          {isNativeToken ? nativeSymbol : tokenSymbol} balance to pay for this
+          transaction
         </div>
       )}
 
@@ -254,10 +266,13 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
       <Button
         variant="primary"
-        onClick={onPay}
+        onClick={isSufficientBalance ? onPay : undefined}
         // Ensures double-clicks are physically disabled while `isLoading` (mapped to isPaying) is true
         disabled={
-          isLoading || (requiresCustomerInfo && !isFormValid) || !agreedToTerms
+          isLoading ||
+          (requiresCustomerInfo && !isFormValid) ||
+          !agreedToTerms ||
+          !isSufficientBalance
         }
       >
         {isLoading ? loadingText || "PROCESSING..." : "PAY"}
