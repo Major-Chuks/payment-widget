@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
+/* eslint-disable @next/next/no-img-element */
 import styles from "./TokenIcon.module.css";
 
 interface TokenIconProps {
@@ -34,13 +34,15 @@ export const TokenIcon: React.FC<TokenIconProps> = ({
   }
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt={alt}
       width={size}
       height={size}
       className={className}
       onError={() => setIsBroken(true)}
+      style={{ width: size, height: size, objectFit: 'contain' }}
     />
   );
 };

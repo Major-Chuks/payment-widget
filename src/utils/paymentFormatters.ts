@@ -60,7 +60,7 @@ export interface TokenConfig {
   address?: string;   // EVM
 }
 
-export const formatBackendTokens = (cryptoOptions: CryptoOption[]) => {
+export const formatBackendTokens = (cryptoOptions: (CryptoOption & { decimals?: number })[]) => {
   const evmTokens: TokenConfig[] = [];
   const solanaTokens: TokenConfig[] = [];
 
@@ -69,8 +69,8 @@ export const formatBackendTokens = (cryptoOptions: CryptoOption[]) => {
     const logoUrl = token.logo;
 
     const isStablecoin = ['USDC', 'USDT'].includes(symbol);
-    const evmDecimals = isStablecoin ? 6 : 18;
-    const solDecimals = isStablecoin ? 6 : 9;
+    const evmDecimals = token.decimals ?? (isStablecoin ? 6 : 18);
+    const solDecimals = token.decimals ?? (isStablecoin ? 6 : 9);
 
     token.networks.forEach((network) => {
       if (!network.token_address) return;

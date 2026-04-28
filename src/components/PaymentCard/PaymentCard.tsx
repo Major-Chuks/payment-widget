@@ -41,6 +41,7 @@ interface PaymentCardProps {
   nativeSymbol?: string;
   tokenSymbol?: string;
   isNativeToken: boolean;
+  tokenBalances?: { symbol: string; balance: number }[];
   onPay: () => void;
   refetchQuote: () => void;
   onConnectWallet: () => void;
@@ -67,6 +68,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   nativeSymbol,
   tokenSymbol,
   isNativeToken,
+  tokenBalances = [],
   onPay,
   onValidate,
   refetchQuote,
@@ -82,14 +84,21 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
   const quoteReady = !!selectedNetwork && !!selectedToken;
 
-  const tokens: SelectorOption[] = cryptoOptions.map((opt) => ({
-    id: opt.id,
-    name: opt.slug.toUpperCase(),
-    subtitle: opt.title,
-    icon: opt.logo,
-    symbol: opt.slug.toUpperCase(),
-    networks: opt.networks,
-  }));
+  const tokens: SelectorOption[] = cryptoOptions.map((opt) => {
+    const symUpper = opt.slug.toUpperCase();
+    const bal = tokenBalances.find(
+      (t) => t.symbol.toLowerCase() === symUpper.toLowerCase()
+    );
+    return {
+      id: opt.id,
+      name: symUpper,
+      subtitle: opt.title,
+      icon: opt.logo,
+      symbol: symUpper,
+      networks: opt.networks,
+      balance: bal?.balance,
+    };
+  });
 
   const selectedCryptoOption = cryptoOptions.find(
     (opt) => opt.id === selectedToken?.id,
