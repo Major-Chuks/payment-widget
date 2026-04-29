@@ -110,6 +110,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         name: net.title,
         icon: net.logo,
         symbol: net.slug.toUpperCase(),
+        tokenAddress: net.token_address,
       }))
     : [];
 

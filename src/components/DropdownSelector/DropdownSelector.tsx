@@ -16,6 +16,7 @@ export interface SelectorOption {
   icon: string;
   balance?: number;
   symbol?: string;
+  tokenAddress?: string;
   networks?: Network[];
 }
 

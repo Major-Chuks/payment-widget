@@ -192,11 +192,11 @@ export const createApiClient = (
 
       if (originalRequest) {
         const endpoint = `${originalRequest.method?.toUpperCase()} ${originalRequest.url}`;
-        console.error(`[API ERROR - ${endpoint}]`, {
-          message: apiError.message,
-          code: apiError.code,
-          statusCode: apiError.statusCode,
-        });
+        // console.error(`[API ERROR - ${endpoint}]`, {
+        //   message: apiError.message,
+        //   code: apiError.code,
+        //   statusCode: apiError.statusCode,
+        // });
       }
 
       console.log({ responseData, apiError });
