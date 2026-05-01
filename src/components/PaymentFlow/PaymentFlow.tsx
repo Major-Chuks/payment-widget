@@ -131,7 +131,12 @@ const PaymentFlow: React.FC = () => {
     executePayment,
   } = useExecutePayment();
 
-  const { data: quote, refetch: refetchQuote } = useGetCryptoQuoteQuery(
+  const {
+    data: quote,
+    refetch: refetchQuote,
+    isError: isQuoteError,
+    error: quoteError,
+  } = useGetCryptoQuoteQuery(
     {
       identifier,
       params: {
@@ -337,6 +342,8 @@ const PaymentFlow: React.FC = () => {
             selectedToken?.symbol?.toLowerCase() === nativeSymbol.toLowerCase()
           }
           tokenBalances={tokenBalances}
+          isQuoteError={isQuoteError}
+          quoteError={quoteError}
         />
       </div>
 

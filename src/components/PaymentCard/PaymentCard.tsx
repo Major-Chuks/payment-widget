@@ -42,6 +42,8 @@ interface PaymentCardProps {
   tokenSymbol?: string;
   isNativeToken: boolean;
   tokenBalances?: { symbol: string; balance: number }[];
+  isQuoteError: boolean;
+  quoteError: any;
   onPay: () => void;
   refetchQuote: () => void;
   onConnectWallet: () => void;
@@ -69,6 +71,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   tokenSymbol,
   isNativeToken,
   tokenBalances = [],
+  isQuoteError,
+  quoteError,
   onPay,
   onValidate,
   refetchQuote,
@@ -87,7 +91,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   const tokens: SelectorOption[] = cryptoOptions.map((opt) => {
     const symUpper = opt.slug.toUpperCase();
     const bal = tokenBalances.find(
-      (t) => t.symbol.toLowerCase() === symUpper.toLowerCase()
+      (t) => t.symbol.toLowerCase() === symUpper.toLowerCase(),
     );
     return {
       id: opt.id,
@@ -220,12 +224,17 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           <span className={styles.currency}>{priceDenomination}</span>
         </div>
 
-        {quote && (
+        {quote ? (
           <div className={styles.rate}>
             ≈ {clipAmount(quote.target_amount, 4)}{" "}
             {quote.target_currency?.toUpperCase()}
           </div>
-        )}
+        ) : isQuoteError ? (
+          <div className={styles.error}>
+            <WarningIcon style={{ flex: "0 0 auto" }} />{" "}
+            {quoteError?.message || "Failed to fetch quote"}
+          </div>
+        ) : null}
       </div>
 
       {!isSufficientBalance && (
