@@ -11,6 +11,7 @@ export interface get_paymentDetailsForPayer {
   allows_card_pay: boolean;
   crypto_options: CryptoOption[];
   swap_options?: SwapOptions;
+  swap_networks: SwapOptions[];
   recipients: Recipient[];
   allows_multiple_sales: boolean;
   min_sales: number;
@@ -42,6 +43,7 @@ export interface Asset {
 export interface SwapOptions {
   network_id: string;
   network: Network;
+  provider: string;
   input_tokens_url: string;
 }
 

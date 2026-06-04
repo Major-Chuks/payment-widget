@@ -10,10 +10,11 @@ import {
 } from "@reown/appkit/react";
 import { toast, Toaster } from "sonner";
 import {
-  useGetCryptoQuoteQuery,
+  useGetCreateAShortLivedExchangeRateQuoteForAPaymentQuery,
+  useGetPayerSelectableSwapTokensForAPaymentQuery,
   useGetPaymentDetailsForPayerQuery,
 } from "@/api-services/generated";
-import { baseURL } from "@/api-services/config/constants";
+
 import { Header } from "../Header/Header";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { PaymentCard } from "../PaymentCard/PaymentCard";
@@ -27,7 +28,7 @@ import { useExecutePayment } from "./useExecutePayment";
 import { useTransfer } from "@/hooks/useTransfer";
 import { formatBackendTokens } from "@/utils/paymentFormatters";
 import { usePaymentPolling } from "@/hooks/usePaymentPolling";
-import { SwapToken } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import { SwapOptions } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -51,48 +52,47 @@ const PaymentFlow: React.FC = () => {
     isError,
   } = useGetPaymentDetailsForPayerQuery(identifier);
 
-  const [swapTokens, setSwapTokens] = useState<SwapToken[]>([]);
-  const [isFetchingSwapTokens, setIsFetchingSwapTokens] = useState(false);
+  const [selectedSwapNetwork, setSelectedSwapNetwork] =
+    useState<SwapOptions | null>(null);
 
+  // Auto-select the first swap network when payment details load
   useEffect(() => {
-    if (pd?.allows_token_swaps && pd?.swap_options?.input_tokens_url) {
-      const fetchSwapTokens = async () => {
-        try {
-          setIsFetchingSwapTokens(true);
-          const url = `${baseURL.replace(/\/$/, "")}/${pd.swap_options!.input_tokens_url.replace(/^\//, "")}`;
-          const response = await fetch(url);
-          if (!response.ok) throw new Error("Network response was not ok");
-          const result = await response.json();
-          if (result?.data?.tokens) {
-            setSwapTokens(result.data.tokens);
-          }
-        } catch (error) {
-          console.error("Failed to fetch swap tokens", error);
-        } finally {
-          setIsFetchingSwapTokens(false);
-        }
-      };
-      fetchSwapTokens();
+    if (
+      pd?.allows_token_swaps &&
+      pd.swap_networks?.length &&
+      !selectedSwapNetwork
+    ) {
+      setSelectedSwapNetwork(pd.swap_networks[0]);
     }
   }, [pd]);
 
+  const { data: swapTokenData, isLoading: isFetchingSwapTokens } =
+    useGetPayerSelectableSwapTokensForAPaymentQuery(
+      {
+        identifier,
+        params: { network_id: selectedSwapNetwork?.network_id ?? "" },
+      },
+      { enabled: !!selectedSwapNetwork && pd?.allows_token_swaps === true },
+    );
+
   const computedCryptoOptions = useMemo(() => {
-    if (pd?.allows_token_swaps && pd?.swap_options) {
-      if (swapTokens.length > 0) {
-        return swapTokens.map((t) => ({
+    if (pd?.allows_token_swaps && pd.swap_networks?.length) {
+      const tokens = swapTokenData?.tokens ?? [];
+      if (tokens.length > 0) {
+        const allNetworks = pd.swap_networks.map((sn) => sn.network);
+        return tokens.map((t) => ({
           id: t.mint,
           slug: t.symbol,
           title: t.name,
           logo: t.logo || "",
           decimals: t.decimals,
-          // All swap tokens share the single swap network; mint acts as token_address on Solana
-          networks: [{ ...pd.swap_options!.network, token_address: t.mint }],
+          networks: allNetworks.map((n) => ({ ...n, token_address: t.mint })),
         }));
       }
       return [];
     }
     return pd?.crypto_options ?? [];
-  }, [pd, swapTokens]);
+  }, [pd, swapTokenData]);
 
   const {
     address,
@@ -136,17 +136,17 @@ const PaymentFlow: React.FC = () => {
     refetch: refetchQuote,
     isError: isQuoteError,
     error: quoteError,
-  } = useGetCryptoQuoteQuery(
+  } = useGetCreateAShortLivedExchangeRateQuoteForAPaymentQuery(
     {
       identifier,
       params: {
         network_id: selectedNetwork?.id ?? "",
         ...(pd?.allows_token_swaps && pd?.swap_options
-          ? { payer_token_mint: selectedToken?.id }
+          ? { payer_token_mint: selectedToken?.id, payer_address: address }
           : { cryptocurrency_id: selectedToken?.id }),
       },
     },
-    { enabled: !!selectedNetwork && !!selectedToken },
+    { enabled: !!selectedNetwork && !!selectedToken && !!address },
   );
 
   const recipientAddress = useMemo(() => {
@@ -177,6 +177,13 @@ const PaymentFlow: React.FC = () => {
 
   const handleNetworkSelect = (option: SelectorOption | null) => {
     setSelectedNetwork(option);
+    if (option && pd?.swap_networks?.length) {
+      const match = pd.swap_networks.find((sn) => sn.network.id === option.id);
+      if (match && match.network_id !== selectedSwapNetwork?.network_id) {
+        setSelectedSwapNetwork(match);
+        setSelectedToken(null);
+      }
+    }
   };
 
   const handlePay = () => {
@@ -241,15 +248,14 @@ const PaymentFlow: React.FC = () => {
   useEffect(() => {
     if (!computedCryptoOptions?.[0] || selectedToken) return;
     const opt = computedCryptoOptions[0];
-    const swapNetwork =
-      pd?.allows_token_swaps && pd.swap_options
-        ? {
-            id: pd.swap_options.network.id,
-            name: pd.swap_options.network.title,
-            icon: pd.swap_options.network.logo,
-            symbol: pd.swap_options.network.slug.toUpperCase(),
-          }
-        : null;
+    const swapNetwork = selectedSwapNetwork
+      ? {
+          id: selectedSwapNetwork.network.id,
+          name: selectedSwapNetwork.network.title,
+          icon: selectedSwapNetwork.network.logo,
+          symbol: selectedSwapNetwork.network.slug.toUpperCase(),
+        }
+      : null;
     setSelectedToken({
       id: opt.id,
       name: opt.slug.toUpperCase(),
@@ -259,7 +265,7 @@ const PaymentFlow: React.FC = () => {
       networks: opt.networks,
     });
     if (swapNetwork) setSelectedNetwork(swapNetwork);
-  }, [computedCryptoOptions, selectedToken]);
+  }, [computedCryptoOptions, selectedToken, selectedSwapNetwork]);
 
   // Switch AppKit network once when selectedNetwork is set
   useEffect(() => {
@@ -280,7 +286,8 @@ const PaymentFlow: React.FC = () => {
     if (quote) setQuoteId(quote.quote_id);
   }, [quote]);
 
-  const isLoading = isPdLoading || isFetchingSwapTokens;
+  const isLoading =
+    isPdLoading || (!!pd?.allows_token_swaps && isFetchingSwapTokens);
   if (isLoading) return <LoadingState />;
   if (!pd || isError)
     return (

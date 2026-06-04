@@ -1,11 +1,11 @@
-import { CustomerDataPayload } from "@/api-services/definitions/publicPayments";
+import { PreparePaymentTransactionPayload } from "@/api-services/definitions/publicPayments";
 import { CryptoOption } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 import { evmNetworkSlugs, solanaNetworkSlugs } from "@/config";
 
 export const formatCustomerData = (
   requiresCustomerInfo: boolean | undefined,
   customerInfoData: Record<string, string>,
-): CustomerDataPayload | undefined => {
+): PreparePaymentTransactionPayload["customer_data"] | undefined => {
   if (!requiresCustomerInfo) return undefined;
 
   const {
@@ -55,12 +55,14 @@ export interface TokenConfig {
   symbol: string;
   decimals: number;
   logoUrl?: string;
-  chain: 'solana' | 'evm';
-  mint?: string;      // Solana
-  address?: string;   // EVM
+  chain: "solana" | "evm";
+  mint?: string; // Solana
+  address?: string; // EVM
 }
 
-export const formatBackendTokens = (cryptoOptions: (CryptoOption & { decimals?: number })[]) => {
+export const formatBackendTokens = (
+  cryptoOptions: (CryptoOption & { decimals?: number })[],
+) => {
   const evmTokens: TokenConfig[] = [];
   const solanaTokens: TokenConfig[] = [];
 
@@ -68,7 +70,7 @@ export const formatBackendTokens = (cryptoOptions: (CryptoOption & { decimals?: 
     const symbol = token.slug.toUpperCase();
     const logoUrl = token.logo;
 
-    const isStablecoin = ['USDC', 'USDT'].includes(symbol);
+    const isStablecoin = ["USDC", "USDT"].includes(symbol);
     const evmDecimals = token.decimals ?? (isStablecoin ? 6 : 18);
     const solDecimals = token.decimals ?? (isStablecoin ? 6 : 9);
 

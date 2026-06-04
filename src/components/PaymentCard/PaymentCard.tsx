@@ -18,7 +18,7 @@ import {
   CustomerInfo,
   get_paymentDetailsForPayer,
 } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
-import { get_cryptoQuote } from "@/api-services/types/publicPayments/get_cryptoQuote";
+import { get_createAShortLivedExchangeRateQuoteForAPayment } from "@/api-services/types/publicPayments/get_createAShortLivedExchangeRateQuoteForAPayment";
 import { clipAmount } from "@/utils";
 import { QuoteRefreshButton } from "./QuoteRefreshButton";
 import { Tooltip } from "../Tooltip/Tooltip";
@@ -35,7 +35,7 @@ interface PaymentCardProps {
   requiresCustomerInfo: boolean;
   customerInfo: CustomerInfo;
   isFormValid: boolean;
-  quote?: get_cryptoQuote;
+  quote?: get_createAShortLivedExchangeRateQuoteForAPayment;
   nativeBalance?: number | null;
   tokenBalance?: number | null;
   nativeSymbol?: string;

@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Generated file - DO NOT EDIT
-import { useQueryClient, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  type UseMutationOptions,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import { publicPaymentsApi } from "../definitions/publicPayments";
 import { useApiQuery, useApiMutation } from ".";
 
@@ -10,29 +14,118 @@ type ApiVars<T extends (...args: any) => any> = Parameters<T>[0];
 
 export const publicPaymentsKeys = {
   all: ["publicPayments"] as const,
-  get_paymentDetailsForPayer: (params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>) => [...publicPaymentsKeys.all, "get_paymentDetailsForPayer", params] as const,
-  get_checkPaymentStatus: (params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>) => [...publicPaymentsKeys.all, "get_checkPaymentStatus", params] as const,
-  get_cryptoQuote: (params: ApiVars<typeof publicPaymentsApi.get_cryptoQuote>) => [...publicPaymentsKeys.all, "get_cryptoQuote", params] as const,
+  get_paymentDetailsForPayer: (
+    params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>,
+  ) =>
+    [...publicPaymentsKeys.all, "get_paymentDetailsForPayer", params] as const,
+  get_payerSelectableSwapTokensForAPayment: (
+    params: ApiVars<
+      typeof publicPaymentsApi.get_payerSelectableSwapTokensForAPayment
+    >,
+  ) =>
+    [
+      ...publicPaymentsKeys.all,
+      "get_payerSelectableSwapTokensForAPayment",
+      params,
+    ] as const,
+  get_createAShortLivedExchangeRateQuoteForAPayment: (
+    params: ApiVars<
+      typeof publicPaymentsApi.get_createAShortLivedExchangeRateQuoteForAPayment
+    >,
+  ) =>
+    [
+      ...publicPaymentsKeys.all,
+      "get_createAShortLivedExchangeRateQuoteForAPayment",
+      params,
+    ] as const,
+  get_checkPaymentStatus: (
+    params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>,
+  ) => [...publicPaymentsKeys.all, "get_checkPaymentStatus", params] as const,
 };
 
-export const useGetPaymentDetailsForPayerQuery = <TData = ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>>(
+export const useGetPaymentDetailsForPayerQuery = <
+  TData = ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>,
+>(
   params: ApiVars<typeof publicPaymentsApi.get_paymentDetailsForPayer>,
   options?: Omit<
-    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>, Error, TData>,
+    UseQueryOptions<
+      ApiData<typeof publicPaymentsApi.get_paymentDetailsForPayer>,
+      Error,
+      TData
+    >,
     "queryKey" | "queryFn"
-  >
+  >,
 ) =>
   useApiQuery(
     publicPaymentsKeys.get_paymentDetailsForPayer(params),
     () => publicPaymentsApi.get_paymentDetailsForPayer(params),
-    options
+    options,
+  );
+
+export const useGetPayerSelectableSwapTokensForAPaymentQuery = <
+  TData = ApiData<
+    typeof publicPaymentsApi.get_payerSelectableSwapTokensForAPayment
+  >,
+>(
+  params: ApiVars<
+    typeof publicPaymentsApi.get_payerSelectableSwapTokensForAPayment
+  >,
+  options?: Omit<
+    UseQueryOptions<
+      ApiData<
+        typeof publicPaymentsApi.get_payerSelectableSwapTokensForAPayment
+      >,
+      Error,
+      TData
+    >,
+    "queryKey" | "queryFn"
+  >,
+) =>
+  useApiQuery(
+    publicPaymentsKeys.get_payerSelectableSwapTokensForAPayment(params),
+    () => publicPaymentsApi.get_payerSelectableSwapTokensForAPayment(params),
+    options,
+  );
+
+export const useGetCreateAShortLivedExchangeRateQuoteForAPaymentQuery = <
+  TData = ApiData<
+    typeof publicPaymentsApi.get_createAShortLivedExchangeRateQuoteForAPayment
+  >,
+>(
+  params: ApiVars<
+    typeof publicPaymentsApi.get_createAShortLivedExchangeRateQuoteForAPayment
+  >,
+  options?: Omit<
+    UseQueryOptions<
+      ApiData<
+        typeof publicPaymentsApi.get_createAShortLivedExchangeRateQuoteForAPayment
+      >,
+      Error,
+      TData
+    >,
+    "queryKey" | "queryFn"
+  >,
+) =>
+  useApiQuery(
+    publicPaymentsKeys.get_createAShortLivedExchangeRateQuoteForAPayment(
+      params,
+    ),
+    () =>
+      publicPaymentsApi.get_createAShortLivedExchangeRateQuoteForAPayment(
+        params,
+      ),
+    options,
   );
 
 export const usePostCheckApprovalAndGetApproveTxMutation = (
   options?: Omit<
-    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>, Error, ApiVars<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>>,
+    UseMutationOptions<
+      ApiData<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>,
+      Error,
+      ApiVars<typeof publicPaymentsApi.post_checkApprovalAndGetApproveTx>
+    >,
     "mutationFn"
-  >
+  >,
 ) => {
   const queryClient = useQueryClient();
 
@@ -47,9 +140,13 @@ export const usePostCheckApprovalAndGetApproveTxMutation = (
 
 export const usePostPreparePaymentTransactionMutation = (
   options?: Omit<
-    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_preparePaymentTransaction>, Error, ApiVars<typeof publicPaymentsApi.post_preparePaymentTransaction>>,
+    UseMutationOptions<
+      ApiData<typeof publicPaymentsApi.post_preparePaymentTransaction>,
+      Error,
+      ApiVars<typeof publicPaymentsApi.post_preparePaymentTransaction>
+    >,
     "mutationFn"
-  >
+  >,
 ) => {
   const queryClient = useQueryClient();
 
@@ -64,9 +161,13 @@ export const usePostPreparePaymentTransactionMutation = (
 
 export const usePostSubmitPaymentTxHashMutation = (
   options?: Omit<
-    UseMutationOptions<ApiData<typeof publicPaymentsApi.post_submitPaymentTxHash>, Error, ApiVars<typeof publicPaymentsApi.post_submitPaymentTxHash>>,
+    UseMutationOptions<
+      ApiData<typeof publicPaymentsApi.post_submitPaymentTxHash>,
+      Error,
+      ApiVars<typeof publicPaymentsApi.post_submitPaymentTxHash>
+    >,
     "mutationFn"
-  >
+  >,
 ) => {
   const queryClient = useQueryClient();
 
@@ -79,28 +180,21 @@ export const usePostSubmitPaymentTxHashMutation = (
   });
 };
 
-export const useGetCheckPaymentStatusQuery = <TData = ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>>(
+export const useGetCheckPaymentStatusQuery = <
+  TData = ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>,
+>(
   params: ApiVars<typeof publicPaymentsApi.get_checkPaymentStatus>,
   options?: Omit<
-    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>, Error, TData>,
+    UseQueryOptions<
+      ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>,
+      Error,
+      TData
+    >,
     "queryKey" | "queryFn"
-  >
+  >,
 ) =>
   useApiQuery(
     publicPaymentsKeys.get_checkPaymentStatus(params),
     () => publicPaymentsApi.get_checkPaymentStatus(params),
-    options
-  );
-
-export const useGetCryptoQuoteQuery = <TData = ApiData<typeof publicPaymentsApi.get_cryptoQuote>>(
-  params: ApiVars<typeof publicPaymentsApi.get_cryptoQuote>,
-  options?: Omit<
-    UseQueryOptions<ApiData<typeof publicPaymentsApi.get_cryptoQuote>, Error, TData>,
-    "queryKey" | "queryFn"
-  >
-) =>
-  useApiQuery(
-    publicPaymentsKeys.get_cryptoQuote(params),
-    () => publicPaymentsApi.get_cryptoQuote(params),
-    options
+    options,
   );
