@@ -223,12 +223,26 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           {totalPrice.toFixed(2)}{" "}
           <span className={styles.currency}>{priceDenomination}</span>
         </div>
-
         {quote ? (
-          <div className={styles.rate}>
-            ≈ {clipAmount(quote.target_amount, 4)}{" "}
-            {quote.target_currency?.toUpperCase()}
-          </div>
+          <>
+            <div className={styles.rate}>
+              ≈ {clipAmount(quote.target_amount, 4)}{" "}
+              {quote.target_currency?.toUpperCase()}{" "}
+              {quote.route_cost && "(gas fee included)"}
+            </div>
+
+            {quote.route_cost && (
+              <div className={styles.gasFeeRowContainer}>
+                <hr />
+                <div className={styles.gasFeeRow}>
+                  <span>Gas Fee:</span> ≈{" "}
+                  {clipAmount(quote?.route_cost || "", 6)}{" "}
+                  {quote?.target_currency}{" "}
+                  <span>(~${clipAmount(quote?.route_cost_usd || "", 6)})</span>
+                </div>
+              </div>
+            )}
+          </>
         ) : isQuoteError ? (
           <div className={styles.error}>
             <WarningIcon style={{ flex: "0 0 auto" }} />{" "}

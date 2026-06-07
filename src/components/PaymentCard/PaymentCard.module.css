@@ -92,7 +92,7 @@
   margin-bottom: 8px;
 }
 
-.balance>div {
+.balance > div {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -171,6 +171,30 @@
   margin-bottom: 4px;
 }
 
+.gasFeeRowContainer {
+  margin-top: 8px;
+
+  color: var(--Grey-500, #7d828d);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 22px;
+  /* 146.667% */
+  letter-spacing: -0.15px;
+}
+
+.gasFeeRowContainer hr {
+  border-color: rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+}
+
+.gasFeeRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
 .currency {
   color: var(--Grey-500, #7d828d);
   font-size: 15px;
@@ -182,7 +206,7 @@
 }
 
 .rate {
-  color: var(--COLORS-Grey-grey-500, #7D828D);
+  color: var(--COLORS-Grey-grey-500, #7d828d);
   font-family: var(--font-pjs);
   font-size: 12px;
   font-style: normal;
@@ -286,12 +310,14 @@
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
-  color: #AAADB5;
-  transition: background 0.15s ease, color 0.15s ease;
+  color: #aaadb5;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .refreshButton:hover {
-  background: #F7F7F8;
+  background: #f7f7f8;
   color: #1a1a1a;
 }
 
@@ -300,16 +326,16 @@
 }
 
 .countdownTrack {
-  stroke: #D7D8DC;
+  stroke: #d7d8dc;
 }
 
 .countdownArc {
-  stroke: #783FE4;
+  stroke: #783fe4;
   transition: stroke-dashoffset 1s linear;
 }
 
 .countdownLabel {
-  font-family: 'Geist', sans-serif;
+  font-family: "Geist", sans-serif;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: -0.1px;

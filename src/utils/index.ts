@@ -22,7 +22,7 @@ type ClipLength = number | [number, number];
 export function formatText(
   input: string,
   format: FormatType = "titleCase",
-  clipLength: ClipLength = 4
+  clipLength: ClipLength = 4,
 ): string {
   if (!input || typeof input !== "string") return "";
 
@@ -154,17 +154,26 @@ export function formatText(
   }
 }
 
-export const formatAddress = (address: string, clipLength: ClipLength = [6, 3]) => {
+export const formatAddress = (
+  address: string,
+  clipLength: ClipLength = [6, 3],
+) => {
   return formatText(address, "clip", clipLength);
 };
 
-
-export function clipAmount(value: number | string, significantDigits = 3): string {
+export function clipAmount(
+  value: number | string,
+  significantDigits = 3,
+): string {
+  if (!value) return "";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (!isFinite(num) || num === 0) return String(num);
 
   const magnitude = Math.floor(Math.log10(Math.abs(num)));
-  const decimalPlaces = magnitude >= 0 ? significantDigits : Math.abs(magnitude) - 1 + significantDigits;
+  const decimalPlaces =
+    magnitude >= 0
+      ? significantDigits
+      : Math.abs(magnitude) - 1 + significantDigits;
   const factor = Math.pow(10, decimalPlaces);
   const truncated = Math.floor(Math.abs(num) * factor) / factor;
   const result = (num < 0 ? -truncated : truncated).toFixed(decimalPlaces);

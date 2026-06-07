@@ -6,6 +6,8 @@ export type get_createAShortLivedExchangeRateQuoteForAPayment = {
   target_amount: string;
   target_amount_raw: string;
   target_currency: string;
+  route_cost?: string | null;
+  route_cost_usd?: string | null;
   rate: string;
   expires_at: string;
 };
