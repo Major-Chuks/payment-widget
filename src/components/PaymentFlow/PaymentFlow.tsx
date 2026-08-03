@@ -357,9 +357,9 @@ const PaymentFlow: React.FC = () => {
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        amount={paymentStatusDetails?.amount_paid ?? "0"}
+        amount={paymentStatusDetails?.payer_token?.amount ?? "0"}
         network={selectedNetwork?.name ?? ""}
-        tokenSymbol={paymentStatusDetails?.denomination ?? ""}
+        tokenSymbol={paymentStatusDetails?.payer_token?.symbol ?? ""}
         txHash={paymentStatusDetails?.tx_hash ?? ""}
         fromAddress={address ?? ""}
         toAddress={recipientAddress}

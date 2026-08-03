@@ -6,8 +6,12 @@ export interface get_checkPaymentStatus {
   tx_hash: string;
   explorer_url: string;
   status: PaymentStatus;
-  amount_paid: string;
-  amount_paid_raw: string;
+  payer_token: {
+    mint: string;
+    symbol: string;
+    amount_raw: string;
+    amount: string;
+  };
   denomination: string;
   confirmations: number;
   error: string | null;

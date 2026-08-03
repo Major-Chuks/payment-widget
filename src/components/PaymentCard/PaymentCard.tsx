@@ -236,9 +236,9 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
                 <hr />
                 <div className={styles.gasFeeRow}>
                   <span>Gas Fee:</span> ≈{" "}
-                  {clipAmount(quote?.route_cost || "", 6)}{" "}
+                  {clipAmount(quote?.route_cost || "", 2)}{" "}
                   {quote?.target_currency}{" "}
-                  <span>(~${clipAmount(quote?.route_cost_usd || "", 6)})</span>
+                  <span>(~${clipAmount(quote?.route_cost_usd || "", 2)})</span>
                 </div>
               </div>
             )}
