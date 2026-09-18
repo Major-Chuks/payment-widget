@@ -1,2 +1,1 @@
-
-export const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.orki.io";
+export const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "";

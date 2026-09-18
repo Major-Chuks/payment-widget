@@ -1,5 +1,6 @@
 import {
   solanaDevnet,
+  base,
   baseSepolia,
   polygon,
   mainnet,
@@ -24,6 +25,11 @@ export const SUPPORTED_CHAINS = {
   evm: [
     {
       slug: "base",
+      appKitNetwork: base,
+      nativeCurrency: "ETH",
+    },
+    {
+      slug: "base-sepolia",
       appKitNetwork: baseSepolia,
       nativeCurrency: "ETH",
     },
@@ -66,7 +72,7 @@ export function getNativeCurrencyByChainId(
 export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId,
-  networks: [baseSepolia, polygon, mainnet],
+  networks: [base, baseSepolia, polygon, mainnet],
 });
 
 export const config = wagmiAdapter.wagmiConfig;
