@@ -27,6 +27,37 @@ interface ExecutePaymentParams {
   identifier: string;
 }
 
+const parseChainId = (chainId: string | number | undefined): number | undefined => {
+  if (chainId === undefined || chainId === null) return undefined;
+  if (typeof chainId === "number") return chainId;
+  const str = String(chainId).trim();
+  if (str.startsWith("0x") || str.startsWith("0X")) {
+    return parseInt(str, 16);
+  }
+  const parsed = parseInt(str, 10);
+  return isNaN(parsed) ? undefined : parsed;
+};
+
+const parseBigIntValue = (val?: string | number): bigint => {
+  if (!val) return BigInt(0);
+  try {
+    return BigInt(val);
+  } catch (err) {
+    console.warn(`[Payment Flow] Failed to parse value as BigInt: ${val}`, err);
+    return BigInt(0);
+  }
+};
+
+const parseBigIntGas = (val?: string | number): bigint | undefined => {
+  if (!val || val === "0" || val === "0x0" || val === 0) return undefined;
+  try {
+    return BigInt(val);
+  } catch (err) {
+    console.warn(`[Payment Flow] Failed to parse gas as BigInt: ${val}`, err);
+    return undefined;
+  }
+};
+
 export const useExecutePayment = () => {
   const { walletProvider } = useAppKitProvider<Provider>("solana");
   const { connection } = useAppKitConnection();
@@ -106,24 +137,16 @@ export const useExecutePayment = () => {
         let signature: string = "";
 
         try {
-          console.log("[Solana Tx] Requesting signature and broadcasting...");
-
-          // 2. ROBUST FIX: Adjusting RPC parameters to prevent simulation collision
           signature = await walletProvider!.sendTransaction(
             transaction as any,
             connection as any,
             {
-              skipPreflight: true, // Prevents RPC simulation which throws the false "already processed" error
+              skipPreflight: true,
               preflightCommitment: "confirmed",
-              maxRetries: 0, // Stops aggressive library retries that cause duplicates
+              maxRetries: 0,
             },
           );
-          console.log(
-            "[Solana Tx] Successfully broadcasted. Signature:",
-            signature,
-          );
         } catch (sendError: any) {
-          // 3. ROBUST FIX: Deep logging to catch it if it somehow reoccurs
           console.error("[Solana Tx Error] Full Error Object:", sendError);
 
           if (sendError.logs) {
@@ -138,13 +161,16 @@ export const useExecutePayment = () => {
             console.warn(
               '[Solana Tx Sync] Caught "already processed" error. The transaction likely succeeded on-chain, but the client RPC panicked.',
             );
-            // We throw a cleaner error here to prevent passing an empty signature to the backend
             throw new Error(
               "Transaction processed successfully, but encountered a sync delay. Please check your wallet history.",
             );
           }
 
-          throw sendError; // Re-throw standard user rejections/insufficient funds
+          throw sendError;
+        }
+
+        if (!signature || signature.trim() === "") {
+          throw new Error("Solana transaction was sent, but signature was empty.");
         }
 
         setPaymentStep("Finalizing payment...");
@@ -173,7 +199,7 @@ export const useExecutePayment = () => {
       return;
     }
 
-    // EVM flow (Kept exact same)
+    // EVM flow
     try {
       // skip approval check if token swap is enabled
       if (!pd.allows_token_swaps) {
@@ -186,13 +212,14 @@ export const useExecutePayment = () => {
         if (approvalResult.needs_approval) {
           setPaymentStep("Approving token spend...");
           const { tx } = approvalResult.approve_tx;
+          const parsedChainId = parseChainId(tx.chainId);
 
           const approveHash = await sendTransactionAsync({
             to: tx.to as `0x${string}`,
             data: tx.data as `0x${string}`,
-            value: BigInt(tx.value),
-            gas: BigInt(tx.gas),
-            chainId: parseInt(tx.chainId, 16),
+            value: parseBigIntValue(tx.value),
+            gas: parseBigIntGas(tx.gas),
+            chainId: parsedChainId,
           });
 
           setPaymentStep("Waiting for approval confirmation...");
@@ -212,6 +239,8 @@ export const useExecutePayment = () => {
       if (prepareResult.payment_tx.executions) {
         // Swap Flow: Multiple executions
         const executions = prepareResult.payment_tx.executions;
+        const executionHashes: { id: string; kind?: string; hash: string }[] = [];
+
         for (let i = 0; i < executions.length; i++) {
           const execution = executions[i];
           setPaymentStep(
@@ -219,34 +248,48 @@ export const useExecutePayment = () => {
           );
 
           const execTx = execution.tx;
-          const execChainId = execTx.chainId as number;
+          const execChainId = parseChainId(execTx.chainId);
 
           const hash = await sendTransactionAsync({
             to: execTx.to as `0x${string}`,
             data: execTx.data as `0x${string}`,
-            value: BigInt(execTx.value || "0"),
-            gas: BigInt(execTx.gas || "0"),
+            value: parseBigIntValue(execTx.value),
+            gas: parseBigIntGas(execTx.gas),
             chainId: execChainId,
           });
 
           setPaymentStep(`Waiting for confirmation ${i + 1}...`);
           await waitForTransactionReceipt(wagmiConfig, { hash });
 
-          if (execution.id === "deposit") {
+          executionHashes.push({ id: execution.id, kind: execution.kind, hash });
+
+          const isFulfillment =
+            execution.id?.toLowerCase() === "deposit" ||
+            execution.kind?.toLowerCase() === "deposit" ||
+            execution.id?.toLowerCase() === "swap" ||
+            execution.kind?.toLowerCase() === "swap";
+
+          if (isFulfillment) {
             finalTxHash = hash;
           }
+        }
+
+        // Fallback: If no execution specifically matched "deposit" or "swap", use the last execution's hash
+        if (!finalTxHash && executionHashes.length > 0) {
+          const lastExec = executionHashes[executionHashes.length - 1];
+          finalTxHash = lastExec.hash;
         }
       } else if (prepareResult.payment_tx.tx) {
         // Non-Swap Flow: Single transaction
         setPaymentStep("Sending payment...");
         const payTx = prepareResult.payment_tx.tx;
-        const payChainId = parseInt(String(payTx.chainId), 16);
+        const payChainId = parseChainId(payTx.chainId);
 
         const payHash = await sendTransactionAsync({
           to: payTx.to as `0x${string}`,
           data: payTx.data as `0x${string}`,
-          value: BigInt(payTx.value || "0"),
-          gas: BigInt(payTx.gas || "0"),
+          value: parseBigIntValue(payTx.value),
+          gas: parseBigIntGas(payTx.gas),
           chainId: payChainId,
         });
 
@@ -255,6 +298,11 @@ export const useExecutePayment = () => {
         finalTxHash = payHash;
       } else {
         throw new Error("No transaction data returned from prepare.");
+      }
+
+      // Guard: Ensure finalTxHash is not empty before submitting to backend
+      if (!finalTxHash || typeof finalTxHash !== "string" || finalTxHash.trim() === "") {
+        throw new Error("Payment transaction succeeded, but the transaction hash could not be captured. Payment submission aborted. Please check your wallet.");
       }
 
       setPaymentStep("Finalizing payment...");
@@ -270,8 +318,8 @@ export const useExecutePayment = () => {
         tx_hash: finalTxHash,
       });
       setShowStatusModal(true);
-    } catch (e) {
-      console.error("[EVM Payment Flow] Failed:", e);
+    } catch (e: any) {
+      console.error("[EVM Payment Flow] Failed with error:", e);
       toast.error("Payment failed: " + (e as Error).message);
     } finally {
       setIsPaying(false);
