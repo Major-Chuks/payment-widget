@@ -24,6 +24,7 @@ import { LoadingState } from "../LoadingState/LoadingState";
 import { ErrorState } from "../ErrorState/ErrorState";
 import { SelectorOption } from "../DropdownSelector/DropdownSelector";
 import { findAppKitNetwork } from "@/utils/networkMapping";
+import { parseMetaMaskError } from "@/utils/pareseMetamaskError";
 import { useExecutePayment } from "./useExecutePayment";
 import { useTransfer } from "@/hooks/useTransfer";
 import { formatBackendTokens } from "@/utils/paymentFormatters";
@@ -167,6 +168,7 @@ const PaymentFlow: React.FC = () => {
       open();
     } catch (error) {
       console.error(error);
+      toast.error(parseMetaMaskError(error));
     }
   };
 
@@ -236,11 +238,16 @@ const PaymentFlow: React.FC = () => {
     },
     onFail: (error, txHash) => {
       setPaymentStatus("failed");
+      const chainType = chain?.toLowerCase() === "solana" ? "solana" : "evm";
+      const parsedError = error
+        ? parseMetaMaskError(error, chainType)
+        : "Failed to confirm payment";
       setPaymentStatusDetails((prev) => ({
         ...prev,
-        error: error ?? "Failed to confirm payment",
+        error: parsedError,
         tx_hash: txHash,
       }));
+      toast.error(parsedError);
     },
   });
 
@@ -299,7 +306,7 @@ const PaymentFlow: React.FC = () => {
 
   return (
     <div className={styles.paymentContainer}>
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" richColors closeButton />
 
       <Header
         isWalletConnected={isConnected}

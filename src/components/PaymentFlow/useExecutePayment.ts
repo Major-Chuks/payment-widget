@@ -1,6 +1,7 @@
 import { get_paymentDetailsForPayer } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 import { toast } from "sonner";
 import { decodeBase64Tx, formatCustomerData } from "@/utils/paymentFormatters";
+import { parseMetaMaskError } from "@/utils/pareseMetamaskError";
 import {
   usePostCheckApprovalAndGetApproveTxMutation,
   usePostPreparePaymentTransactionMutation,
@@ -191,7 +192,7 @@ export const useExecutePayment = () => {
         setShowStatusModal(true);
       } catch (err) {
         console.error("[Solana Payment Flow] Failed:", err);
-        toast.error("Payment failed: " + (err as Error).message);
+        toast.error(parseMetaMaskError(err, "solana"));
       } finally {
         setIsPaying(false);
         setPaymentStep("");
@@ -320,7 +321,7 @@ export const useExecutePayment = () => {
       setShowStatusModal(true);
     } catch (e: any) {
       console.error("[EVM Payment Flow] Failed with error:", e);
-      toast.error("Payment failed: " + (e as Error).message);
+      toast.error(parseMetaMaskError(e, "evm"));
     } finally {
       setIsPaying(false);
       setPaymentStep("");

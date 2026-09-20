@@ -180,3 +180,5 @@ export function clipAmount(
 
   return result;
 }
+
+export * from "./pareseMetamaskError";
