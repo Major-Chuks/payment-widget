@@ -1,27 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import styles from "./PaymentCard.module.css";
+import { get_createAShortLivedExchangeRateQuoteForAPayment } from "@/api-services/types/publicPayments/get_createAShortLivedExchangeRateQuoteForAPayment";
+import {
+  CustomerInfo,
+  get_paymentDetailsForPayer,
+} from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 import poweredLogo from "@/assets/powered-logo.svg";
+import qrcodeIcon from "@/assets/qrcode-icon.svg";
+import usdcIcon from "@/assets/tokens/usdc.svg";
+import WarningIcon from "@/assets/WarningIcon";
+import { clipAmount } from "@/utils";
 import Image from "next/image";
+import React, { useEffect, useState } from "react";
+import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
 import Button from "../Button/Button";
 import {
   DropdownSelector,
   SelectorOption,
 } from "../DropdownSelector/DropdownSelector";
 import { QRCodeModal } from "../QRCodeModal/QRCodeModal";
-import qrcodeIcon from "@/assets/qrcode-icon.svg";
-import WarningIcon from "@/assets/WarningIcon";
-import usdcIcon from "@/assets/tokens/usdc.svg";
-import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
-import {
-  CustomerInfo,
-  get_paymentDetailsForPayer,
-} from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
-import { get_createAShortLivedExchangeRateQuoteForAPayment } from "@/api-services/types/publicPayments/get_createAShortLivedExchangeRateQuoteForAPayment";
-import { clipAmount } from "@/utils";
-import { QuoteRefreshButton } from "./QuoteRefreshButton";
 import { Tooltip } from "../Tooltip/Tooltip";
+import styles from "./PaymentCard.module.css";
+import { QuoteRefreshButton } from "./QuoteRefreshButton";
 
 interface PaymentCardProps {
   isWalletConnected: boolean;
@@ -280,7 +280,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         <span>
           I agree to the{" "}
           <a
-            href="https://orki-money.vercel.app/terms-of-use"
+            href="https://www.orki.io/terms-of-service"
             target="_blank"
             rel="noreferrer noopener"
           >
@@ -288,7 +288,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           </a>{" "}
           and{" "}
           <a
-            href="https://orki-money.vercel.app/privacy-policy"
+            href="https://www.orki.io/privacy-policy"
             target="_blank"
             rel="noreferrer noopener"
           >
