@@ -1,35 +1,35 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import styles from "./PaymentFlow.module.css";
-import { useParams } from "next/navigation";
-import {
-  useAppKit,
-  useAppKitNetwork,
-  useDisconnect,
-} from "@reown/appkit/react";
-import { toast, Toaster } from "sonner";
 import {
   useGetCreateAShortLivedExchangeRateQuoteForAPaymentQuery,
   useGetPayerSelectableSwapTokensForAPaymentQuery,
   useGetPaymentDetailsForPayerQuery,
 } from "@/api-services/generated";
+import {
+  useAppKit,
+  useAppKitNetwork,
+  useDisconnect,
+} from "@reown/appkit/react";
+import { useParams } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
+import { toast, Toaster } from "sonner";
+import styles from "./PaymentFlow.module.css";
 
-import { Header } from "../Header/Header";
-import { ProductCard } from "../ProductCard/ProductCard";
-import { PaymentCard } from "../PaymentCard/PaymentCard";
-import { SuccessModal } from "../SuccessModal/SuccessModal";
-import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
-import { LoadingState } from "../LoadingState/LoadingState";
-import { ErrorState } from "../ErrorState/ErrorState";
-import { SelectorOption } from "../DropdownSelector/DropdownSelector";
+import { SwapOptions } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import { usePaymentPolling } from "@/hooks/usePaymentPolling";
+import { useTransfer } from "@/hooks/useTransfer";
 import { findAppKitNetwork } from "@/utils/networkMapping";
 import { parseMetaMaskError } from "@/utils/pareseMetamaskError";
-import { useExecutePayment } from "./useExecutePayment";
-import { useTransfer } from "@/hooks/useTransfer";
 import { formatBackendTokens } from "@/utils/paymentFormatters";
-import { usePaymentPolling } from "@/hooks/usePaymentPolling";
-import { SwapOptions } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import { SelectorOption } from "../DropdownSelector/DropdownSelector";
+import { ErrorState } from "../ErrorState/ErrorState";
+import { Header } from "../Header/Header";
+import { LoadingState } from "../LoadingState/LoadingState";
+import { PaymentCard } from "../PaymentCard/PaymentCard";
+import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
+import { ProductCard } from "../ProductCard/ProductCard";
+import { SuccessModal } from "../SuccessModal/SuccessModal";
+import { useExecutePayment } from "./useExecutePayment";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -44,6 +44,7 @@ const PaymentFlow: React.FC = () => {
   const [isFormValid, setIsFormValid] = useState(false);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isRefetchingForPay, setIsRefetchingForPay] = useState(false);
 
   const params = useParams();
   const identifier = params?.identifier as string;
@@ -188,7 +189,7 @@ const PaymentFlow: React.FC = () => {
     }
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!address) {
       toast.error("Please connect your wallet");
       return;
@@ -204,26 +205,35 @@ const PaymentFlow: React.FC = () => {
       return;
     }
 
-    if (!quoteId) {
-      toast.error("Please refresh quote");
-      return;
-    }
-
     if (!pd) {
       toast.error("Payment details not found");
       return;
     }
 
-    executePayment({
-      payerAddress: address,
-      networkId: selectedNetwork?.id,
-      tokenId: selectedToken?.id,
-      quoteId: quoteId,
-      pd,
-      customerInfoData,
-      isSolana: chain?.toLowerCase() === "solana",
-      identifier,
-    });
+    setIsRefetchingForPay(true);
+    try {
+      const { data: refreshedQuote, isError: isRefreshError } =
+        await refetchQuote();
+      const currentQuoteId = refreshedQuote?.quote_id || quoteId;
+
+      if (!currentQuoteId || isRefreshError) {
+        toast.error("Please refresh quote");
+        return;
+      }
+
+      executePayment({
+        payerAddress: address,
+        networkId: selectedNetwork?.id,
+        tokenId: selectedToken?.id,
+        quoteId: currentQuoteId,
+        pd,
+        customerInfoData,
+        isSolana: chain?.toLowerCase() === "solana",
+        identifier,
+      });
+    } finally {
+      setIsRefetchingForPay(false);
+    }
   };
 
   usePaymentPolling({
@@ -336,7 +346,7 @@ const PaymentFlow: React.FC = () => {
             if (!showStatusModal && !isPaying) refetchQuote();
           }}
           onPay={handlePay}
-          isLoading={isPaying}
+          isLoading={isPaying || isRefetchingForPay}
           loadingText={paymentStep}
           cryptoOptions={computedCryptoOptions}
           selectedNetwork={selectedNetwork}
