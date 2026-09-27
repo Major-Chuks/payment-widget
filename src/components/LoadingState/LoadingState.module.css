@@ -30,6 +30,16 @@
   gap: 32px;
 }
 
+.dynamicContent {
+  display: flex;
+  justify-content: center;
+}
+
+.dynamicContent .paymentCard {
+  width: 100%;
+  max-width: 480px;
+}
+
 .productCard,
 .paymentCard {
   background: #fff;

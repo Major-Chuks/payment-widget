@@ -2,7 +2,11 @@ import React from "react";
 import { Skeleton } from "../Skeleton/Skeleton";
 import styles from "./LoadingState.module.css";
 
-export const LoadingState: React.FC = () => {
+interface LoadingStateProps {
+  isDynamic?: boolean;
+}
+
+export const LoadingState: React.FC<LoadingStateProps> = ({ isDynamic }) => {
     return (
         <div className={styles.container}>
             {/* Header Skeleton */}
@@ -14,19 +18,25 @@ export const LoadingState: React.FC = () => {
                 </div>
             </div>
 
-            <div className={styles.content}>
+            <div
+                className={`${styles.content} ${
+                    isDynamic ? styles.dynamicContent : ""
+                }`}
+            >
                 {/* Product Card Skeleton */}
-                <div className={styles.productCard}>
-                    <Skeleton width={100} height={16} style={{ marginBottom: 8 }} /> {/* Recipient Label */}
-                    <Skeleton width={200} height={24} style={{ marginBottom: 16 }} /> {/* Title */}
+                {!isDynamic && (
+                    <div className={styles.productCard}>
+                        <Skeleton width={100} height={16} style={{ marginBottom: 8 }} /> {/* Recipient Label */}
+                        <Skeleton width={200} height={24} style={{ marginBottom: 16 }} /> {/* Title */}
 
-                    <Skeleton width="100%" height={200} borderRadius={16} style={{ marginBottom: 16 }} /> {/* Image */}
+                        <Skeleton width="100%" height={200} borderRadius={16} style={{ marginBottom: 16 }} /> {/* Image */}
 
-                    <div className={styles.productFooter}>
-                        <Skeleton width={80} height={16} />
-                        <Skeleton width={60} height={16} />
+                        <div className={styles.productFooter}>
+                            <Skeleton width={80} height={16} />
+                            <Skeleton width={60} height={16} />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Payment Card Skeleton */}
                 <div className={styles.paymentCard}>

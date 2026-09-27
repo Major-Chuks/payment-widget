@@ -54,6 +54,41 @@ const PaymentFlow: React.FC = () => {
     isError,
   } = useGetPaymentDetailsForPayerQuery(identifier);
 
+  const isDynamicFromUrl = useMemo(() => {
+    if (identifier?.startsWith("chg_")) return true;
+    if (typeof window !== "undefined") {
+      try {
+        const search = new URLSearchParams(window.location.search);
+        if (
+          search.get("dynamic") === "true" ||
+          search.get("is_dynamic") === "true"
+        ) {
+          return true;
+        }
+        const stored = sessionStorage.getItem(`orki_dynamic_${identifier}`);
+        if (stored !== null) return stored === "true";
+      } catch {
+        // ignore
+      }
+    }
+    return false;
+  }, [identifier]);
+
+  const isDynamic = pd?.is_dynamic ?? isDynamicFromUrl;
+
+  useEffect(() => {
+    if (pd && identifier && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          `orki_dynamic_${identifier}`,
+          String(Boolean(pd.is_dynamic)),
+        );
+      } catch {
+        // ignore
+      }
+    }
+  }, [pd, identifier]);
+
   const [selectedSwapNetwork, setSelectedSwapNetwork] =
     useState<SwapOptions | null>(null);
 
@@ -305,7 +340,8 @@ const PaymentFlow: React.FC = () => {
 
   const isLoading =
     isPdLoading || (!!pd?.allows_token_swaps && isFetchingSwapTokens);
-  if (isLoading) return <LoadingState />;
+
+  if (isLoading) return <LoadingState isDynamic={isDynamic} />;
   if (!pd || isError)
     return (
       <ErrorState
@@ -324,13 +360,19 @@ const PaymentFlow: React.FC = () => {
         walletAddress={address ?? ""}
       />
 
-      <div className={styles.content}>
-        <ProductCard
-          recipient={recipientAddress}
-          title={pd.product_title}
-          description={pd.description}
-          images={pd.images}
-        />
+      <div
+        className={`${styles.content} ${
+          isDynamic ? styles.dynamicContent : ""
+        }`}
+      >
+        {!isDynamic && (
+          <ProductCard
+            recipient={recipientAddress}
+            title={pd.product_title}
+            description={pd.description}
+            images={pd.images}
+          />
+        )}
 
         <PaymentCard
           isWalletConnected={isConnected}

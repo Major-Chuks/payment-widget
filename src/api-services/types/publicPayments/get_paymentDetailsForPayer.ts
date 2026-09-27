@@ -7,6 +7,7 @@ export interface get_paymentDetailsForPayer {
   price_denomination: "crypto" | string;
   price_denomination_asset: Asset;
   customer_can_change_price: boolean;
+  is_dynamic?: boolean;
   allows_token_swaps: boolean;
   allows_card_pay: boolean;
   crypto_options: CryptoOption[];
