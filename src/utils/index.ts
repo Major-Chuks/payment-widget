@@ -165,9 +165,9 @@ export function clipAmount(
   value: number | string,
   significantDigits = 3,
 ): string {
-  if (!value) return "";
+  if (value === undefined || value === null || value === "") return "";
   const num = typeof value === "string" ? parseFloat(value) : value;
-  if (!isFinite(num) || num === 0) return String(num);
+  if (!isFinite(num) || num === 0) return "0";
 
   const magnitude = Math.floor(Math.log10(Math.abs(num)));
   const decimalPlaces =

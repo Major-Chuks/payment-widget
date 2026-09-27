@@ -147,14 +147,28 @@ const PaymentFlow: React.FC = () => {
   const { switchNetwork } = useAppKitNetwork();
   const { disconnect } = useDisconnect();
 
-  const tokenBalance =
+  const currentNetworkTokenAddress = selectedToken?.networks?.find(
+    (n) =>
+      n.id === selectedNetwork?.id ||
+      n.slug?.toLowerCase() === selectedNetwork?.symbol?.toLowerCase() ||
+      n.title?.toLowerCase() === selectedNetwork?.name?.toLowerCase(),
+  )?.token_address;
+
+  const currentTokenBalanceObj =
+    (currentNetworkTokenAddress
+      ? tokenBalances.find(
+          (t) =>
+            t.contractAddress.toLowerCase() ===
+            currentNetworkTokenAddress.toLowerCase(),
+        )
+      : null) ??
     tokenBalances.find(
       (t) => t.symbol.toLowerCase() === selectedToken?.symbol?.toLowerCase(),
-    )?.balance ?? 0;
+    );
+
+  const tokenBalance = currentTokenBalanceObj?.balance ?? 0;
   const tokenSymbol =
-    tokenBalances.find(
-      (t) => t.symbol.toLowerCase() === selectedToken?.symbol?.toLowerCase(),
-    )?.symbol ?? "";
+    currentTokenBalanceObj?.symbol ?? selectedToken?.symbol ?? "";
 
   const {
     isPaying,
