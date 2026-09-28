@@ -11,6 +11,7 @@ import type { TokenConfig } from "@/constants/tokens";
 
 const EXPLORER: Record<number, string> = {
     1: "https://etherscan.io/tx",
+    11155111: "https://sepolia.etherscan.io/tx",
     137: "https://polygonscan.com/tx",
     8453: "https://basescan.org/tx",
     80002: "https://amoy.polygonscan.com/tx",

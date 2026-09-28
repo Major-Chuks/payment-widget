@@ -39,6 +39,8 @@ const WalletConnectApp: React.FC = () => {
     switch (id) {
       case 1:
         return "Ethereum Mainnet";
+      case 11155111:
+        return "Ethereum Sepolia";
       case 137:
         return "Polygon";
       case 42161:

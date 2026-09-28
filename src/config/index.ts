@@ -5,6 +5,7 @@ import {
   polygon,
   polygonAmoy,
   mainnet,
+  sepolia,
 } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana/react";
@@ -53,6 +54,12 @@ export const SUPPORTED_CHAINS = {
       appKitNetwork: mainnet,
       nativeCurrency: "ETH",
     },
+    {
+      slug: "eth-sepolia",
+      aliases: ["sepolia", "ethereum-sepolia"],
+      appKitNetwork: sepolia,
+      nativeCurrency: "ETH",
+    },
   ] as NetworkConfig[],
 
   solana: [
@@ -89,7 +96,7 @@ export function getNativeCurrencyByChainId(
 export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId,
-  networks: [base, baseSepolia, polygon, polygonAmoy, mainnet],
+  networks: [base, baseSepolia, polygon, polygonAmoy, mainnet, sepolia],
 });
 
 export const config = wagmiAdapter.wagmiConfig;
