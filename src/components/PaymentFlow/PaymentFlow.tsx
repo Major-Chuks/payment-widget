@@ -30,6 +30,7 @@ import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import { useExecutePayment } from "./useExecutePayment";
+import { emitWidgetEvent } from "@/utils/emitWidgetEvent";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -294,6 +295,34 @@ const PaymentFlow: React.FC = () => {
       setPaymentStatusDetails((prev) => ({ ...prev, ...result }));
       setShowSuccessModal(true);
       toast.success("Payment confirmed!");
+
+      if (isDynamic) {
+        emitWidgetEvent("ORKI_PAYMENT_SUCCESS", {
+          gateway_payment_id: result.gateway_payment_id,
+          transaction_ref: result.transaction_ref,
+          tx_hash: result.tx_hash,
+          status: result.status,
+          amount: result.payer_token?.amount,
+          token: result.payer_token?.symbol,
+          network: selectedNetwork?.name,
+          identifier,
+          explorer_url: result.explorer_url,
+          result,
+        });
+      }
+
+      if (pd?.redirect_url) {
+        const redirectUrl = pd.redirect_url;
+        const redirectOption = pd.redirect_option || "auto";
+
+        if (redirectOption === "instant") {
+          window.location.href = redirectUrl;
+        } else if (redirectOption === "auto") {
+          setTimeout(() => {
+            window.location.href = redirectUrl;
+          }, 3000);
+        }
+      }
     },
     onFail: (error, txHash) => {
       setPaymentStatus("failed");
@@ -307,6 +336,15 @@ const PaymentFlow: React.FC = () => {
         tx_hash: txHash,
       }));
       toast.error(parsedError);
+
+      if (isDynamic) {
+        emitWidgetEvent("ORKI_PAYMENT_ERROR", {
+          error: parsedError,
+          tx_hash: txHash,
+          gateway_payment_id: paymentStatusDetails?.gateway_payment_id,
+          identifier,
+        });
+      }
     },
   });
 
@@ -429,7 +467,12 @@ const PaymentFlow: React.FC = () => {
 
       <SuccessModal
         isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
+        onClose={() => {
+          setShowSuccessModal(false);
+          if (isDynamic) {
+            emitWidgetEvent("ORKI_CLOSE");
+          }
+        }}
         amount={paymentStatusDetails?.payer_token?.amount ?? "0"}
         network={selectedNetwork?.name ?? ""}
         tokenSymbol={paymentStatusDetails?.payer_token?.symbol ?? ""}
@@ -441,7 +484,12 @@ const PaymentFlow: React.FC = () => {
 
       <PaymentStatusModal
         isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
+        onClose={() => {
+          setShowStatusModal(false);
+          if (isDynamic && paymentStatus === "failed") {
+            emitWidgetEvent("ORKI_PAYMENT_CANCEL");
+          }
+        }}
         onRetry={() => {
           setShowStatusModal(false);
           handlePay();
