@@ -77,7 +77,8 @@ export const formatBackendTokens = (
     token.networks.forEach((network) => {
       if (!network.token_address) return;
 
-      if (solanaNetworkSlugs.includes(network.slug)) {
+      const netSlug = network.slug?.toLowerCase();
+      if (solanaNetworkSlugs.some((s) => s.toLowerCase() === netSlug)) {
         solanaTokens.push({
           chain: "solana",
           symbol,
@@ -85,7 +86,7 @@ export const formatBackendTokens = (
           decimals: solDecimals,
           logoUrl,
         });
-      } else if (evmNetworkSlugs.includes(network.slug)) {
+      } else if (evmNetworkSlugs.some((s) => s.toLowerCase() === netSlug)) {
         evmTokens.push({
           chain: "evm",
           symbol,

@@ -3,6 +3,7 @@ import {
   base,
   baseSepolia,
   polygon,
+  polygonAmoy,
   mainnet,
 } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
@@ -17,6 +18,7 @@ if (!projectId) {
 
 export interface NetworkConfig {
   slug: string;
+  aliases?: string[];
   appKitNetwork: AppKitNetwork;
   nativeCurrency: string;
 }
@@ -35,11 +37,19 @@ export const SUPPORTED_CHAINS = {
     },
     {
       slug: "pol",
+      aliases: ["polygon"],
       appKitNetwork: polygon,
       nativeCurrency: "POL",
     },
     {
+      slug: "polygon-amoy",
+      aliases: ["amoy", "pol-amoy"],
+      appKitNetwork: polygonAmoy,
+      nativeCurrency: "POL",
+    },
+    {
       slug: "eth",
+      aliases: ["ethereum", "mainnet"],
       appKitNetwork: mainnet,
       nativeCurrency: "ETH",
     },
@@ -48,6 +58,7 @@ export const SUPPORTED_CHAINS = {
   solana: [
     {
       slug: "solana",
+      aliases: ["solana-devnet"],
       appKitNetwork: solanaDevnet,
       nativeCurrency: "SOL",
     },
@@ -59,8 +70,14 @@ export const networks = [
   ...SUPPORTED_CHAINS.solana.map((n) => n.appKitNetwork),
 ] as [AppKitNetwork, ...AppKitNetwork[]];
 
-export const evmNetworkSlugs = SUPPORTED_CHAINS.evm.map((n) => n.slug);
-export const solanaNetworkSlugs = SUPPORTED_CHAINS.solana.map((n) => n.slug);
+export const evmNetworkSlugs = SUPPORTED_CHAINS.evm.flatMap((n) => [
+  n.slug,
+  ...(n.aliases ?? []),
+]);
+export const solanaNetworkSlugs = SUPPORTED_CHAINS.solana.flatMap((n) => [
+  n.slug,
+  ...(n.aliases ?? []),
+]);
 
 export function getNativeCurrencyByChainId(
   chainId: number,
@@ -72,7 +89,7 @@ export function getNativeCurrencyByChainId(
 export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId,
-  networks: [base, baseSepolia, polygon, mainnet],
+  networks: [base, baseSepolia, polygon, polygonAmoy, mainnet],
 });
 
 export const config = wagmiAdapter.wagmiConfig;

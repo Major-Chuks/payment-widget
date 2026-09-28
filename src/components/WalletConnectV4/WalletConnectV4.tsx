@@ -49,6 +49,10 @@ const WalletConnectApp: React.FC = () => {
         return "Optimism";
       case 8453:
         return "Base";
+      case 84532:
+        return "Base Sepolia";
+      case 80002:
+        return "Polygon Amoy";
       default:
         return `Chain ${id}`;
     }
