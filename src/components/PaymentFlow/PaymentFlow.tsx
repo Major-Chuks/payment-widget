@@ -296,6 +296,11 @@ const PaymentFlow: React.FC = () => {
       setShowSuccessModal(true);
       toast.success("Payment confirmed!");
 
+      const isEmbedded =
+        typeof window !== "undefined" &&
+        window.parent &&
+        window.parent !== window;
+
       if (isDynamic) {
         emitWidgetEvent("ORKI_PAYMENT_SUCCESS", {
           gateway_payment_id: result.gateway_payment_id,
@@ -307,11 +312,12 @@ const PaymentFlow: React.FC = () => {
           network: selectedNetwork?.name,
           identifier,
           explorer_url: result.explorer_url,
+          redirect_url: pd?.redirect_url,
           result,
         });
       }
 
-      if (pd?.redirect_url) {
+      if (pd?.redirect_url && !isEmbedded) {
         const redirectUrl = pd.redirect_url;
         const redirectOption = pd.redirect_option || "auto";
 
