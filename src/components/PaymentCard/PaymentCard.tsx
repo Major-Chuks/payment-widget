@@ -46,6 +46,7 @@ interface PaymentCardProps {
   quoteError: any;
   onPay: () => void;
   refetchQuote: () => void;
+  disableQuoteRefresh?: boolean;
   onConnectWallet: () => void;
   onNetworkSelect: (option: SelectorOption | null) => void;
   onTokenSelect: (option: SelectorOption) => void;
@@ -76,6 +77,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   onPay,
   onValidate,
   refetchQuote,
+  disableQuoteRefresh = false,
   onTokenSelect,
   onConnectWallet,
   onNetworkSelect,
@@ -215,7 +217,10 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           <span className={styles.priceLabel}>Total Price</span>
 
           {quoteReady && (
-            <QuoteRefreshButton enabled={quoteReady} onRefresh={refetchQuote} />
+            <QuoteRefreshButton
+              enabled={quoteReady && !isLoading && !disableQuoteRefresh}
+              onRefresh={refetchQuote}
+            />
           )}
         </div>
 

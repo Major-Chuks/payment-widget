@@ -3,6 +3,8 @@ export interface get_paymentDetailsForPayer {
   description: string;
   images: ProductImage[];
   pay_link?: string;
+  checkout_type?: string;
+  charge_status?: string;
   price: string;
   price_denomination: "crypto" | string;
   price_denomination_asset: Asset;

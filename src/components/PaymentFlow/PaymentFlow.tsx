@@ -198,7 +198,19 @@ const PaymentFlow: React.FC = () => {
           : { cryptocurrency_id: selectedToken?.id }),
       },
     },
-    { enabled: !!selectedNetwork && !!selectedToken && !!address },
+    {
+      enabled:
+        !!selectedNetwork &&
+        !!selectedToken &&
+        !!address &&
+        !isPaying &&
+        !isRefetchingForPay &&
+        !showStatusModal &&
+        !showSuccessModal &&
+        paymentStatus !== "confirmed" &&
+        paymentStatus !== "submitted" &&
+        pd?.charge_status !== "paid",
+    },
   );
 
   const recipientAddress = useMemo(() => {
@@ -442,6 +454,15 @@ const PaymentFlow: React.FC = () => {
           ).toUpperCase()}
           onConnectWallet={handleConnectWallet}
           quote={quote}
+          disableQuoteRefresh={
+            isPaying ||
+            isRefetchingForPay ||
+            showStatusModal ||
+            showSuccessModal ||
+            paymentStatus === "confirmed" ||
+            paymentStatus === "submitted" ||
+            pd?.charge_status === "paid"
+          }
           refetchQuote={() => {
             if (!showStatusModal && !isPaying) refetchQuote();
           }}

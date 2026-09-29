@@ -132,7 +132,6 @@ export const usePostCheckApprovalAndGetApproveTxMutation = (
   return useApiMutation(publicPaymentsApi.post_checkApprovalAndGetApproveTx, {
     ...options,
     onSuccess: (data, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
       (options?.onSuccess as any)?.(data, variables, context);
     },
   });
@@ -153,7 +152,6 @@ export const usePostPreparePaymentTransactionMutation = (
   return useApiMutation(publicPaymentsApi.post_preparePaymentTransaction, {
     ...options,
     onSuccess: (data, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
       (options?.onSuccess as any)?.(data, variables, context);
     },
   });
@@ -174,7 +172,11 @@ export const usePostSubmitPaymentTxHashMutation = (
   return useApiMutation(publicPaymentsApi.post_submitPaymentTxHash, {
     ...options,
     onSuccess: (data, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: publicPaymentsKeys.all });
+      if (variables?.identifier) {
+        queryClient.invalidateQueries({
+          queryKey: publicPaymentsKeys.get_paymentDetailsForPayer(variables.identifier),
+        });
+      }
       (options?.onSuccess as any)?.(data, variables, context);
     },
   });
