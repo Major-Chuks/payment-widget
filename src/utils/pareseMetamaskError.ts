@@ -95,7 +95,7 @@ export function parseMetaMaskError(error: unknown, chain?: ChainType): string {
     ],
     [/nonce too low|nonce already used|transaction nonce/, "Transaction nonce outdated. Please retry."],
     [
-      /replacement transaction underpriced|transaction underpriced|replacement fee too low/,
+      /replacement transaction underpriced|transaction underpriced|replacement fee too low|gas price below minimum|gas tip cap/,
       "Gas fee too low. Increase gas price.",
     ],
     [/intrinsic gas too low/, "Gas limit too low."],

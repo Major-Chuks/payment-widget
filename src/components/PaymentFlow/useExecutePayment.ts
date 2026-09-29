@@ -9,13 +9,14 @@ import {
 } from "@/api-services/generated";
 import { useState } from "react";
 import { Transaction, VersionedTransaction } from "@solana/web3.js";
-import { waitForTransactionReceipt } from "@wagmi/core";
+import { waitForTransactionReceipt, estimateFeesPerGas } from "@wagmi/core";
 import { config as wagmiConfig } from "@/config";
 import { useAppKitConnection } from "@reown/appkit-adapter-solana/react";
 import type { Provider } from "@reown/appkit-adapter-solana/react";
 import { useSendTransaction } from "wagmi";
 import { useAppKitProvider } from "@reown/appkit/react";
 import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus";
+import { parseGwei } from "viem";
 
 interface ExecutePaymentParams {
   payerAddress: string;
@@ -57,6 +58,74 @@ const parseBigIntGas = (val?: string | number): bigint | undefined => {
     console.warn(`[Payment Flow] Failed to parse gas as BigInt: ${val}`, err);
     return undefined;
   }
+};
+
+const parseBigIntFee = (val?: string | number): bigint | undefined => {
+  if (!val || val === "0" || val === "0x0" || val === 0) return undefined;
+  try {
+    return BigInt(val);
+  } catch (err) {
+    console.warn(`[Payment Flow] Failed to parse fee as BigInt: ${val}`, err);
+    return undefined;
+  }
+};
+
+const isPolygonChain = (chainId?: number): boolean => chainId === 137 || chainId === 80002;
+
+interface GasFeeParams {
+  chainId?: number;
+  maxPriorityFeePerGas?: string | number;
+  maxFeePerGas?: string | number;
+}
+
+const resolveTransactionFees = async (params: GasFeeParams): Promise<{
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+}> => {
+  const { chainId, maxPriorityFeePerGas: rawTip, maxFeePerGas: rawMaxFee } = params;
+  let tip = parseBigIntFee(rawTip);
+  let maxFee = parseBigIntFee(rawMaxFee);
+
+  const isPolygon = isPolygonChain(chainId);
+
+  if (isPolygon) {
+    // Polygon validators enforce a strict minimum priority fee (gas tip cap) of 25 Gwei.
+    // We use 30 Gwei to ensure clearance even during minor fee fluctuations.
+    const minPolygonTip = parseGwei("30");
+    if (!tip || tip < minPolygonTip) {
+      tip = minPolygonTip;
+    }
+  }
+
+  if (tip) {
+    if (!maxFee || maxFee < tip) {
+      try {
+        if (chainId) {
+          const estimated = await estimateFeesPerGas(wagmiConfig, { chainId });
+          if (estimated.maxFeePerGas) {
+            maxFee = estimated.maxFeePerGas > tip ? estimated.maxFeePerGas : tip * BigInt(2);
+          } else {
+            maxFee = tip * BigInt(2);
+          }
+        } else {
+          maxFee = tip * BigInt(2);
+        }
+      } catch (err) {
+        console.warn("[Payment Flow] Failed to estimate fees per gas, using fallback buffer:", err);
+        maxFee = tip * BigInt(2);
+      }
+    }
+  }
+
+  const result: { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint } = {};
+  if (tip !== undefined) {
+    result.maxPriorityFeePerGas = tip;
+  }
+  if (maxFee !== undefined) {
+    result.maxFeePerGas = maxFee;
+  }
+
+  return result;
 };
 
 export const useExecutePayment = () => {
@@ -215,12 +284,19 @@ export const useExecutePayment = () => {
           const { tx } = approvalResult.approve_tx;
           const parsedChainId = parseChainId(tx.chainId);
 
+          const feeParams = await resolveTransactionFees({
+            chainId: parsedChainId,
+            maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+            maxFeePerGas: tx.maxFeePerGas,
+          });
+
           const approveHash = await sendTransactionAsync({
             to: tx.to as `0x${string}`,
             data: tx.data as `0x${string}`,
             value: parseBigIntValue(tx.value),
             gas: parseBigIntGas(tx.gas),
             chainId: parsedChainId,
+            ...feeParams,
           });
 
           setPaymentStep("Waiting for approval confirmation...");
@@ -251,12 +327,19 @@ export const useExecutePayment = () => {
           const execTx = execution.tx;
           const execChainId = parseChainId(execTx.chainId);
 
+          const feeParams = await resolveTransactionFees({
+            chainId: execChainId,
+            maxPriorityFeePerGas: execTx.maxPriorityFeePerGas,
+            maxFeePerGas: execTx.maxFeePerGas,
+          });
+
           const hash = await sendTransactionAsync({
             to: execTx.to as `0x${string}`,
             data: execTx.data as `0x${string}`,
             value: parseBigIntValue(execTx.value),
             gas: parseBigIntGas(execTx.gas),
             chainId: execChainId,
+            ...feeParams,
           });
 
           setPaymentStep(`Waiting for confirmation ${i + 1}...`);
@@ -286,12 +369,19 @@ export const useExecutePayment = () => {
         const payTx = prepareResult.payment_tx.tx;
         const payChainId = parseChainId(payTx.chainId);
 
+        const feeParams = await resolveTransactionFees({
+          chainId: payChainId,
+          maxPriorityFeePerGas: payTx.maxPriorityFeePerGas,
+          maxFeePerGas: payTx.maxFeePerGas,
+        });
+
         const payHash = await sendTransactionAsync({
           to: payTx.to as `0x${string}`,
           data: payTx.data as `0x${string}`,
           value: parseBigIntValue(payTx.value),
           gas: parseBigIntGas(payTx.gas),
           chainId: payChainId,
+          ...feeParams,
         });
 
         setPaymentStep("Waiting for payment confirmation...");
