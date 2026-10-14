@@ -11,13 +11,15 @@ import {
   useDisconnect,
 } from "@reown/appkit/react";
 import { useParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import styles from "./PaymentFlow.module.css";
 
+import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus";
 import { SwapOptions } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
 import { usePaymentPolling } from "@/hooks/usePaymentPolling";
 import { useTransfer } from "@/hooks/useTransfer";
+import { emitWidgetEvent } from "@/utils/emitWidgetEvent";
 import { findAppKitNetwork } from "@/utils/networkMapping";
 import { parseMetaMaskError } from "@/utils/pareseMetamaskError";
 import { formatBackendTokens } from "@/utils/paymentFormatters";
@@ -30,7 +32,6 @@ import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import { useExecutePayment } from "./useExecutePayment";
-import { emitWidgetEvent } from "@/utils/emitWidgetEvent";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -46,6 +47,9 @@ const PaymentFlow: React.FC = () => {
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isRefetchingForPay, setIsRefetchingForPay] = useState(false);
+  const successCompletionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestSuccessResultRef = useRef<get_checkPaymentStatus | null>(null);
+  const hasTriggeredSuccessCompletionRef = useRef(false);
 
   const params = useParams();
   const identifier = params?.identifier as string;
@@ -298,6 +302,55 @@ const PaymentFlow: React.FC = () => {
     }
   };
 
+  const triggerSuccessCompletion = (result?: get_checkPaymentStatus | null) => {
+    if (hasTriggeredSuccessCompletionRef.current) return;
+    hasTriggeredSuccessCompletionRef.current = true;
+
+    if (successCompletionTimerRef.current) {
+      clearTimeout(successCompletionTimerRef.current);
+      successCompletionTimerRef.current = null;
+    }
+
+    const res = result || latestSuccessResultRef.current;
+    const isEmbedded =
+      typeof window !== "undefined" &&
+      window.parent &&
+      window.parent !== window;
+
+    if (isDynamic && res) {
+      emitWidgetEvent("ORKI_PAYMENT_SUCCESS", {
+        gateway_payment_id: res.gateway_payment_id,
+        transaction_ref: res.transaction_ref,
+        tx_hash: res.tx_hash,
+        status: res.status,
+        amount: res.payer_token?.amount,
+        token: res.payer_token?.symbol,
+        network: selectedNetwork?.name,
+        identifier,
+        explorer_url: res.explorer_url,
+        redirect_url: pd?.redirect_url,
+        result: res,
+      });
+    }
+
+    if (pd?.redirect_url && !isEmbedded) {
+      const redirectUrl = pd.redirect_url;
+      const redirectOption = pd.redirect_option || "auto";
+
+      if (redirectOption !== "none") {
+        window.location.replace(redirectUrl);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (successCompletionTimerRef.current) {
+        clearTimeout(successCompletionTimerRef.current);
+      }
+    };
+  }, []);
+
   usePaymentPolling({
     showStatusModal,
     paymentStatus,
@@ -308,38 +361,26 @@ const PaymentFlow: React.FC = () => {
       setShowSuccessModal(true);
       toast.success("Payment confirmed!");
 
+      latestSuccessResultRef.current = result;
+      hasTriggeredSuccessCompletionRef.current = false;
+
       const isEmbedded =
         typeof window !== "undefined" &&
         window.parent &&
         window.parent !== window;
 
-      if (isDynamic) {
-        emitWidgetEvent("ORKI_PAYMENT_SUCCESS", {
-          gateway_payment_id: result.gateway_payment_id,
-          transaction_ref: result.transaction_ref,
-          tx_hash: result.tx_hash,
-          status: result.status,
-          amount: result.payer_token?.amount,
-          token: result.payer_token?.symbol,
-          network: selectedNetwork?.name,
-          identifier,
-          explorer_url: result.explorer_url,
-          redirect_url: pd?.redirect_url,
-          result,
-        });
-      }
+      const shouldRedirect = Boolean(
+        pd?.redirect_url && !isEmbedded && pd?.redirect_option !== "none",
+      );
 
-      if (pd?.redirect_url && !isEmbedded) {
-        const redirectUrl = pd.redirect_url;
-        const redirectOption = pd.redirect_option || "auto";
-
-        if (redirectOption === "instant") {
-          window.location.href = redirectUrl;
-        } else if (redirectOption === "auto") {
-          setTimeout(() => {
-            window.location.href = redirectUrl;
-          }, 3000);
+      // Keep success modal visible for about 3 seconds before triggering redirect or closing checkout window
+      if (isDynamic || shouldRedirect) {
+        if (successCompletionTimerRef.current) {
+          clearTimeout(successCompletionTimerRef.current);
         }
+        successCompletionTimerRef.current = setTimeout(() => {
+          triggerSuccessCompletion(result);
+        }, 3000);
       }
     },
     onFail: (error, txHash) => {
@@ -496,7 +537,12 @@ const PaymentFlow: React.FC = () => {
         isOpen={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false);
-          if (isDynamic) {
+          if (
+            !hasTriggeredSuccessCompletionRef.current &&
+            latestSuccessResultRef.current
+          ) {
+            triggerSuccessCompletion(latestSuccessResultRef.current);
+          } else if (isDynamic) {
             emitWidgetEvent("ORKI_CLOSE");
           }
         }}
