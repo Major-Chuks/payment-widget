@@ -1,8 +1,9 @@
-﻿export type WidgetEventType =
+export type WidgetEventType =
   | "ORKI_PAYMENT_SUCCESS"
   | "ORKI_PAYMENT_ERROR"
   | "ORKI_PAYMENT_CANCEL"
-  | "ORKI_CLOSE";
+  | "ORKI_CLOSE"
+  | "ORKI_PAYMENT_EXPIRED";
 
 export interface WidgetEventMessage {
   type: WidgetEventType;
@@ -24,6 +25,7 @@ export const emitWidgetEvent = (
     ORKI_PAYMENT_ERROR: "payment.error",
     ORKI_PAYMENT_CANCEL: "payment.cancel",
     ORKI_CLOSE: "payment.close",
+    ORKI_PAYMENT_EXPIRED: "payment.expired",
   };
 
   const message: WidgetEventMessage = {

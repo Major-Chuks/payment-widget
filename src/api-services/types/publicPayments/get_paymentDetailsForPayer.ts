@@ -26,6 +26,8 @@ export interface get_paymentDetailsForPayer {
   show_badge: boolean;
   primary_color: string;
   button_color: string;
+  // Only set for dynamic payments (ISO 8601 or epoch)
+  expires_at?: string | null;
 }
 
 export interface ProductImage {

@@ -32,6 +32,9 @@ import { PaymentStatusModal } from "../PaymentStatusModal/PaymentStatusModal";
 import { ProductCard } from "../ProductCard/ProductCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import { useExecutePayment } from "./useExecutePayment";
+import { usePaymentExpiration } from "@/hooks/usePaymentExpiration";
+import { PaymentExpiredCard } from "../PaymentExpiredCard/PaymentExpiredCard";
+import { PaymentCountdown } from "../PaymentCountdown/PaymentCountdown";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -187,6 +190,40 @@ const PaymentFlow: React.FC = () => {
     executePayment,
   } = useExecutePayment();
 
+  const isPaid = pd?.charge_status === "paid";
+
+  const {
+    isExpired,
+    hasExpiry,
+    timeLeftMs,
+    formattedTimeLeft,
+    isUrgent,
+    expirationDate,
+  } = usePaymentExpiration({
+    expiresAt: pd?.expires_at,
+    chargeStatus: pd?.charge_status,
+    enabled: Boolean(isDynamic && pd?.expires_at),
+    isCompletedOrInFlight:
+      isPaying ||
+      isRefetchingForPay ||
+      showStatusModal ||
+      showSuccessModal ||
+      isPaid,
+  });
+
+  const hasEmittedExpiredRef = useRef(false);
+
+  // Notify the merchant once, the moment the expired screen is shown
+  useEffect(() => {
+    if (!isExpired || !isDynamic || hasEmittedExpiredRef.current) return;
+    hasEmittedExpiredRef.current = true;
+    emitWidgetEvent("ORKI_PAYMENT_EXPIRED", {
+      identifier,
+      expires_at: pd?.expires_at,
+      redirect_url: pd?.redirect_url,
+    });
+  }, [isExpired, isDynamic, identifier, pd?.expires_at, pd?.redirect_url]);
+
   const {
     data: quote,
     refetch: refetchQuote,
@@ -213,7 +250,8 @@ const PaymentFlow: React.FC = () => {
         !showSuccessModal &&
         paymentStatus !== "confirmed" &&
         paymentStatus !== "submitted" &&
-        pd?.charge_status !== "paid",
+        !isPaid &&
+        !isExpired,
     },
   );
 
@@ -256,6 +294,15 @@ const PaymentFlow: React.FC = () => {
   };
 
   const handlePay = async () => {
+    // Check the clock directly: onRetry calls this from a stale closure where
+    // isExpired is still masked by the open status modal
+    const hasLapsed =
+      hasExpiry && !!expirationDate && Date.now() >= expirationDate.getTime();
+    if (isExpired || hasLapsed) {
+      toast.error("This payment session has expired");
+      return;
+    }
+
     if (!address) {
       toast.error("Please connect your wallet");
       return;
@@ -299,6 +346,30 @@ const PaymentFlow: React.FC = () => {
       });
     } finally {
       setIsRefetchingForPay(false);
+    }
+  };
+
+  const handleReturnToMerchant = () => {
+    const isEmbedded = window.parent && window.parent !== window;
+
+    if (isDynamic) {
+      emitWidgetEvent("ORKI_CLOSE", {
+        reason: "expired",
+        identifier,
+        redirect_url: pd?.redirect_url,
+      });
+    }
+
+    // Embedded: the merchant's page owns navigation and handles ORKI_CLOSE
+    // (same as the success flow, which never redirects from inside an iframe)
+    if (isEmbedded) return;
+
+    if (pd?.redirect_url) {
+      window.location.replace(pd.redirect_url);
+    } else if (window.opener && !window.opener.closed) {
+      window.close();
+    } else if (window.history.length > 1) {
+      window.history.back();
     }
   };
 
@@ -485,52 +556,67 @@ const PaymentFlow: React.FC = () => {
           />
         )}
 
-        <PaymentCard
-          isWalletConnected={isConnected}
-          itemPrice={Number(pd.price) || 0}
-          priceDenomination={(
-            pd.price_denomination_asset.slug ||
-            pd.price_denomination_asset.code ||
-            ""
-          ).toUpperCase()}
-          onConnectWallet={handleConnectWallet}
-          quote={quote}
-          disableQuoteRefresh={
-            isPaying ||
-            isRefetchingForPay ||
-            showStatusModal ||
-            showSuccessModal ||
-            paymentStatus === "confirmed" ||
-            paymentStatus === "submitted" ||
-            pd?.charge_status === "paid"
-          }
-          refetchQuote={() => {
-            if (!showStatusModal && !isPaying) refetchQuote();
-          }}
-          onPay={handlePay}
-          isLoading={isPaying || isRefetchingForPay}
-          loadingText={paymentStep}
-          cryptoOptions={computedCryptoOptions}
-          selectedNetwork={selectedNetwork}
-          onNetworkSelect={handleNetworkSelect}
-          selectedToken={selectedToken}
-          onTokenSelect={handleTokenSelect}
-          requiresCustomerInfo={pd.requires_customer_info}
-          customerInfo={pd.customer_info}
-          onCustomerInfoChange={setCustomerInfoData}
-          isFormValid={isFormValid}
-          onValidate={setIsFormValid}
-          nativeBalance={nativeBalance}
-          nativeSymbol={nativeSymbol}
-          tokenBalance={tokenBalance}
-          tokenSymbol={tokenSymbol}
-          isNativeToken={
-            selectedToken?.symbol?.toLowerCase() === nativeSymbol.toLowerCase()
-          }
-          tokenBalances={tokenBalances}
-          isQuoteError={isQuoteError}
-          quoteError={quoteError}
-        />
+        {isExpired ? (
+          <PaymentExpiredCard
+            price={Number(pd.price) || 0}
+            priceDenomination={(
+              pd.price_denomination_asset.slug ||
+              pd.price_denomination_asset.code ||
+              ""
+            ).toUpperCase()}
+            expirationDate={expirationDate}
+            identifier={identifier}
+            onReturnToMerchant={handleReturnToMerchant}
+          />
+        ) : (
+          <PaymentCard
+            isWalletConnected={isConnected}
+            itemPrice={Number(pd.price) || 0}
+            priceDenomination={(
+              pd.price_denomination_asset.slug ||
+              pd.price_denomination_asset.code ||
+              ""
+            ).toUpperCase()}
+            onConnectWallet={handleConnectWallet}
+            quote={quote}
+            disableQuoteRefresh={
+              isPaying ||
+              isRefetchingForPay ||
+              showStatusModal ||
+              showSuccessModal ||
+              paymentStatus === "confirmed" ||
+              paymentStatus === "submitted" ||
+              isPaid
+            }
+            refetchQuote={() => {
+              if (!showStatusModal && !isPaying) refetchQuote();
+            }}
+            onPay={handlePay}
+            isLoading={isPaying || isRefetchingForPay}
+            loadingText={paymentStep}
+            cryptoOptions={computedCryptoOptions}
+            selectedNetwork={selectedNetwork}
+            onNetworkSelect={handleNetworkSelect}
+            selectedToken={selectedToken}
+            onTokenSelect={handleTokenSelect}
+            requiresCustomerInfo={pd.requires_customer_info}
+            customerInfo={pd.customer_info}
+            onCustomerInfoChange={setCustomerInfoData}
+            isFormValid={isFormValid}
+            onValidate={setIsFormValid}
+            nativeBalance={nativeBalance}
+            nativeSymbol={nativeSymbol}
+            tokenBalance={tokenBalance}
+            tokenSymbol={tokenSymbol}
+            isNativeToken={
+              selectedToken?.symbol?.toLowerCase() ===
+              nativeSymbol.toLowerCase()
+            }
+            tokenBalances={tokenBalances}
+            isQuoteError={isQuoteError}
+            quoteError={quoteError}
+          />
+        )}
       </div>
 
       <SuccessModal
@@ -572,6 +658,17 @@ const PaymentFlow: React.FC = () => {
         transactionRef={paymentStatusDetails?.transaction_ref ?? ""}
         error={paymentStatusDetails?.error ?? ""}
       />
+
+      {hasExpiry &&
+        !isExpired &&
+        !isPaid &&
+        !showSuccessModal &&
+        timeLeftMs > 0 && (
+          <PaymentCountdown
+            formattedTimeLeft={formattedTimeLeft}
+            isUrgent={isUrgent}
+          />
+        )}
     </div>
   );
 };
