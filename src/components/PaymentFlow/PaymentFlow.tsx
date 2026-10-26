@@ -202,7 +202,6 @@ const PaymentFlow: React.FC = () => {
   } = usePaymentExpiration({
     expiresAt: pd?.expires_at,
     chargeStatus: pd?.charge_status,
-    enabled: Boolean(isDynamic && pd?.expires_at),
     isCompletedOrInFlight:
       isPaying ||
       isRefetchingForPay ||
