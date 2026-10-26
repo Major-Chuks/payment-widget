@@ -7,7 +7,13 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { formatAddress } from "@/utils";
 import { Copiable } from "../Copiable/Copiable";
 
-type PaymentStatus = "submitted" | "pending" | "confirmed" | "failed";
+// "unrecorded": the payment was sent on-chain but the backend never recorded it
+type PaymentStatus =
+    | "submitted"
+    | "pending"
+    | "confirmed"
+    | "failed"
+    | "unrecorded";
 
 interface PaymentStatusModalProps {
     isOpen: boolean;
@@ -16,6 +22,7 @@ interface PaymentStatusModalProps {
     status: PaymentStatus;
     transactionRef?: string;
     gatewayPaymentId?: string;
+    txHash?: string;
     error?: string | null;
 }
 
@@ -43,6 +50,12 @@ const statusConfig: Record<
         subtitle: "There was an issue processing your payment.",
         variant: "failed",
     },
+    unrecorded: {
+        title: "Payment Not Recorded",
+        subtitle:
+            "Your payment was sent but couldn't be recorded. Don't pay again. Contact the merchant with the transaction hash below.",
+        variant: "failed",
+    },
 };
 
 export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
@@ -52,12 +65,14 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
     status,
     transactionRef,
     gatewayPaymentId,
+    txHash,
     error,
 }) => {
     if (!isOpen) return null;
 
     const config = statusConfig[status];
     const isFailed = status === "failed";
+    const isUnrecorded = status === "unrecorded";
     const isProcessing = status === "submitted" || status === "pending";
 
     const handleClose = () => {
@@ -84,7 +99,7 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
                     )}
 
                     <div className={styles.statusIcon}>
-                        {isFailed ? (
+                        {isFailed || isUnrecorded ? (
                             <div className={`${styles.iconCircle} ${styles.failed}`}>
                                 <WarningIcon width={48} height={48} />
                             </div>
@@ -128,6 +143,16 @@ export const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
                                     <Copiable text={transactionRef}>
                                         <span className={styles.detailValue}>
                                             {formatAddress(transactionRef)}
+                                        </span>
+                                    </Copiable>
+                                </div>
+                            )}
+                            {txHash && (
+                                <div className={styles.detailRow}>
+                                    <span className={styles.detailLabel}>Transaction</span>
+                                    <Copiable text={txHash}>
+                                        <span className={styles.detailValue}>
+                                            {formatAddress(txHash)}
                                         </span>
                                     </Copiable>
                                 </div>

@@ -38,6 +38,18 @@
   color: inherit;
 }
 
+/* Multi-line variant of the floating pill */
+.notice {
+  max-width: min(320px, calc(100vw - 32px));
+  align-items: flex-start;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+.notice .clockIcon {
+  margin-top: 2px;
+}
+
 .timeText {
   font-family: monospace, monospace;
   font-weight: 700;

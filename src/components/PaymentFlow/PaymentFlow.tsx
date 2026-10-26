@@ -34,7 +34,14 @@ import { SuccessModal } from "../SuccessModal/SuccessModal";
 import { useExecutePayment } from "./useExecutePayment";
 import { usePaymentExpiration } from "@/hooks/usePaymentExpiration";
 import { PaymentExpiredCard } from "../PaymentExpiredCard/PaymentExpiredCard";
-import { PaymentCountdown } from "../PaymentCountdown/PaymentCountdown";
+import {
+  PaymentCountdown,
+  PaymentExpiredWhileSigningNotice,
+} from "../PaymentCountdown/PaymentCountdown";
+
+// The checkout closes this long before the merchant's expiry, so a payment
+// signed at the last moment still reaches the backend in time
+const PAYMENT_SAFETY_MARGIN_MS = 60_000;
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -181,6 +188,7 @@ const PaymentFlow: React.FC = () => {
   const {
     isPaying,
     paymentStep,
+    paymentSignature,
     showStatusModal,
     paymentStatus,
     paymentStatusDetails,
@@ -199,16 +207,30 @@ const PaymentFlow: React.FC = () => {
     formattedTimeLeft,
     isUrgent,
     expirationDate,
+    deadlineMs,
   } = usePaymentExpiration({
     expiresAt: pd?.expires_at,
     chargeStatus: pd?.charge_status,
+    safetyMarginMs: PAYMENT_SAFETY_MARGIN_MS,
+    // Only a payment the wallet may still send (or already sent) holds the page;
+    // expiry during approval or preparation stops the flow instead
     isCompletedOrInFlight:
-      isPaying ||
-      isRefetchingForPay ||
+      paymentSignature !== "none" ||
       showStatusModal ||
       showSuccessModal ||
       isPaid,
   });
+
+  // Leaving now could lose track of a payment the wallet is sending
+  useEffect(() => {
+    if (paymentSignature === "none") return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [paymentSignature]);
 
   const hasEmittedExpiredRef = useRef(false);
 
@@ -222,6 +244,28 @@ const PaymentFlow: React.FC = () => {
       redirect_url: pd?.redirect_url,
     });
   }, [isExpired, isDynamic, identifier, pd?.expires_at, pd?.redirect_url]);
+
+  const emittedUnrecordedTxHashRef = useRef("");
+
+  // A payment was sent but never recorded: tell the merchant money arrived
+  useEffect(() => {
+    const txHash = paymentStatusDetails?.tx_hash;
+    if (paymentStatus !== "unrecorded" || !isDynamic || !txHash) return;
+    if (emittedUnrecordedTxHashRef.current === txHash) return;
+    emittedUnrecordedTxHashRef.current = txHash;
+    emitWidgetEvent("ORKI_PAYMENT_ERROR", {
+      reason: "unrecorded",
+      error: paymentStatusDetails?.error,
+      tx_hash: txHash,
+      identifier,
+    });
+  }, [
+    paymentStatus,
+    isDynamic,
+    identifier,
+    paymentStatusDetails?.tx_hash,
+    paymentStatusDetails?.error,
+  ]);
 
   const {
     data: quote,
@@ -295,8 +339,7 @@ const PaymentFlow: React.FC = () => {
   const handlePay = async () => {
     // Check the clock directly: onRetry calls this from a stale closure where
     // isExpired is still masked by the open status modal
-    const hasLapsed =
-      hasExpiry && !!expirationDate && Date.now() >= expirationDate.getTime();
+    const hasLapsed = deadlineMs !== null && Date.now() >= deadlineMs;
     if (isExpired || hasLapsed) {
       toast.error("This payment session has expired");
       return;
@@ -342,6 +385,7 @@ const PaymentFlow: React.FC = () => {
         customerInfoData,
         isSolana: chain?.toLowerCase() === "solana",
         identifier,
+        deadlineMs,
       });
     } finally {
       setIsRefetchingForPay(false);
@@ -655,6 +699,9 @@ const PaymentFlow: React.FC = () => {
         status={paymentStatus}
         gatewayPaymentId={paymentStatusDetails?.gateway_payment_id ?? ""}
         transactionRef={paymentStatusDetails?.transaction_ref ?? ""}
+        txHash={
+          paymentStatus === "unrecorded" ? paymentStatusDetails?.tx_hash : ""
+        }
         error={paymentStatusDetails?.error ?? ""}
       />
 
@@ -668,6 +715,10 @@ const PaymentFlow: React.FC = () => {
             isUrgent={isUrgent}
           />
         )}
+
+      {paymentSignature === "awaiting" && hasExpiry && timeLeftMs <= 0 && (
+        <PaymentExpiredWhileSigningNotice />
+      )}
     </div>
   );
 };

@@ -4,6 +4,9 @@ export interface UsePaymentExpirationOptions {
   expiresAt?: string | null;
   chargeStatus?: string | null;
   enabled?: boolean;
+  // The checkout closes this long before `expiresAt`, leaving time to sign,
+  // confirm and submit a payment before the backend's cut-off
+  safetyMarginMs?: number;
   // While a payment is on-chain / confirming / done, never flip the UI to "expired"
   isCompletedOrInFlight?: boolean;
 }
@@ -13,7 +16,10 @@ export interface UsePaymentExpirationResult {
   timeLeftMs: number;
   formattedTimeLeft: string;
   hasExpiry: boolean;
+  // When the checkout closes (`expiresAt` minus the safety margin), which is
+  // what the payer sees as the expiry
   expirationDate: Date | null;
+  deadlineMs: number | null;
   isUrgent: boolean;
 }
 
@@ -59,9 +65,11 @@ export const usePaymentExpiration = ({
   expiresAt,
   chargeStatus,
   enabled = true,
+  safetyMarginMs = 0,
   isCompletedOrInFlight = false,
 }: UsePaymentExpirationOptions): UsePaymentExpirationResult => {
-  const targetMs = useMemo(() => parseExpiry(expiresAt), [expiresAt]);
+  const expiryMs = useMemo(() => parseExpiry(expiresAt), [expiresAt]);
+  const targetMs = expiryMs === null ? null : expiryMs - safetyMarginMs;
   const hasExpiry = Boolean(enabled && targetMs !== null);
 
   // Time left is derived from `now` on every render, so it is correct on the
@@ -98,6 +106,7 @@ export const usePaymentExpiration = ({
     formattedTimeLeft: formatDuration(timeLeftMs),
     hasExpiry,
     expirationDate: targetMs !== null ? new Date(targetMs) : null,
+    deadlineMs: hasExpiry ? targetMs : null,
     isUrgent: hasExpiry && timeLeftMs > 0 && timeLeftMs <= URGENT_THRESHOLD_MS,
   };
 };

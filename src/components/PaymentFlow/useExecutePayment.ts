@@ -27,7 +27,26 @@ interface ExecutePaymentParams {
   customerInfoData: Record<string, string>;
   isSolana: boolean;
   identifier: string;
+  // When the checkout closes; no step up to the payment signature runs after it
+  deadlineMs?: number | null;
 }
+
+// "awaiting": the payment prompt is open; "signed": the payment has been sent.
+// Either way the page must stay on the payment until the flow ends.
+export type PaymentSignatureState = "none" | "awaiting" | "signed";
+
+class PaymentSessionExpiredError extends Error {
+  constructor() {
+    super("This payment session has expired");
+    this.name = "PaymentSessionExpiredError";
+  }
+}
+
+// An execution that only grants allowance: signing it late moves no funds
+const isApprovalExecution = (execution: { id?: string; kind?: string }) =>
+  [execution.id, execution.kind].some((v) =>
+    v?.toLowerCase().includes("approv"),
+  );
 
 const parseChainId = (chainId: string | number | undefined): number | undefined => {
   if (chainId === undefined || chainId === null) return undefined;
@@ -135,9 +154,11 @@ export const useExecutePayment = () => {
 
   const [isPaying, setIsPaying] = useState(false);
   const [paymentStep, setPaymentStep] = useState("");
+  const [paymentSignature, setPaymentSignature] =
+    useState<PaymentSignatureState>("none");
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
-    "submitted" | "pending" | "confirmed" | "failed"
+    "submitted" | "pending" | "confirmed" | "failed" | "unrecorded"
   >("submitted");
   const [paymentStatusDetails, setPaymentStatusDetails] =
     useState<Partial<get_checkPaymentStatus> | null>(null);
@@ -157,6 +178,7 @@ export const useExecutePayment = () => {
     customerInfoData,
     isSolana,
     identifier,
+    deadlineMs,
   }: ExecutePaymentParams) => {
     // 1. ROBUST FIX: Strict Guard Clause to prevent double execution
     if (isPaying) {
@@ -167,6 +189,33 @@ export const useExecutePayment = () => {
     }
 
     setIsPaying(true);
+
+    const isPastDeadline = () =>
+      deadlineMs != null && Date.now() >= deadlineMs;
+
+    // Checked before each step up to the payment signature: a late approval is
+    // harmless, a late payment is not
+    const assertSessionOpen = () => {
+      if (isPastDeadline()) throw new PaymentSessionExpiredError();
+    };
+
+    // Set once the payment is sent; from then on a failure must never be silent
+    let sentPaymentHash = "";
+
+    const handleFailure = (err: unknown, chainType: "evm" | "solana") => {
+      if (sentPaymentHash) {
+        setPaymentStatus("unrecorded");
+        setPaymentStatusDetails({
+          tx_hash: sentPaymentHash,
+          error: parseMetaMaskError(err, chainType),
+        });
+        setShowStatusModal(true);
+        return;
+      }
+      // Once the session has closed, the expired screen explains what happened
+      if (err instanceof PaymentSessionExpiredError || isPastDeadline()) return;
+      toast.error(parseMetaMaskError(err, chainType));
+    };
 
     const formattedCustomerData = formatCustomerData(
       pd.requires_customer_info,
@@ -186,12 +235,14 @@ export const useExecutePayment = () => {
 
     if (isSolana) {
       try {
+        assertSessionOpen();
         setPaymentStep("Preparing Solana payment...");
         const prepareResult = await preparePayment({
           identifier,
           payload: commonPayload,
         });
 
+        assertSessionOpen();
         setPaymentStep("Awaiting wallet signature...");
         const txBuffer = decodeBase64Tx(
           prepareResult.payment_tx.tx as unknown as string,
@@ -206,6 +257,7 @@ export const useExecutePayment = () => {
 
         let signature: string = "";
 
+        setPaymentSignature("awaiting");
         try {
           signature = await walletProvider!.sendTransaction(
             transaction as any,
@@ -242,6 +294,8 @@ export const useExecutePayment = () => {
         if (!signature || signature.trim() === "") {
           throw new Error("Solana transaction was sent, but signature was empty.");
         }
+        sentPaymentHash = signature;
+        setPaymentSignature("signed");
 
         setPaymentStep("Finalizing payment...");
         const submitResult = await submitPayment({
@@ -261,16 +315,18 @@ export const useExecutePayment = () => {
         setShowStatusModal(true);
       } catch (err) {
         console.error("[Solana Payment Flow] Failed:", err);
-        toast.error(parseMetaMaskError(err, "solana"));
+        handleFailure(err, "solana");
       } finally {
         setIsPaying(false);
         setPaymentStep("");
+        setPaymentSignature("none");
       }
       return;
     }
 
     // EVM flow
     try {
+      assertSessionOpen();
       // skip approval check if token swap is enabled
       if (!pd.allows_token_swaps) {
         setPaymentStep("Checking token approval...");
@@ -280,6 +336,7 @@ export const useExecutePayment = () => {
         });
 
         if (approvalResult.needs_approval) {
+          assertSessionOpen();
           setPaymentStep("Approving token spend...");
           const { tx } = approvalResult.approve_tx;
           const parsedChainId = parseChainId(tx.chainId);
@@ -299,12 +356,13 @@ export const useExecutePayment = () => {
             ...feeParams,
           });
 
+          assertSessionOpen();
           setPaymentStep("Waiting for approval confirmation...");
           await waitForTransactionReceipt(wagmiConfig, { hash: approveHash });
-          toast.success("Token approval confirmed!");
         }
       }
 
+      assertSessionOpen();
       setPaymentStep("Preparing payment...");
       const prepareResult = await preparePayment({
         identifier,
@@ -320,6 +378,7 @@ export const useExecutePayment = () => {
 
         for (let i = 0; i < executions.length; i++) {
           const execution = executions[i];
+          const isApproval = isApprovalExecution(execution);
           setPaymentStep(
             `Sending transaction ${i + 1} of ${executions.length}...`,
           );
@@ -333,6 +392,12 @@ export const useExecutePayment = () => {
             maxFeePerGas: execTx.maxFeePerGas,
           });
 
+          // Once funds have moved, the remaining executions must still run
+          if (!sentPaymentHash) {
+            assertSessionOpen();
+            if (!isApproval) setPaymentSignature("awaiting");
+          }
+
           const hash = await sendTransactionAsync({
             to: execTx.to as `0x${string}`,
             data: execTx.data as `0x${string}`,
@@ -341,6 +406,11 @@ export const useExecutePayment = () => {
             chainId: execChainId,
             ...feeParams,
           });
+
+          if (!isApproval) {
+            sentPaymentHash = hash;
+            setPaymentSignature("signed");
+          }
 
           setPaymentStep(`Waiting for confirmation ${i + 1}...`);
           await waitForTransactionReceipt(wagmiConfig, { hash });
@@ -375,6 +445,8 @@ export const useExecutePayment = () => {
           maxFeePerGas: payTx.maxFeePerGas,
         });
 
+        assertSessionOpen();
+        setPaymentSignature("awaiting");
         const payHash = await sendTransactionAsync({
           to: payTx.to as `0x${string}`,
           data: payTx.data as `0x${string}`,
@@ -383,6 +455,8 @@ export const useExecutePayment = () => {
           chainId: payChainId,
           ...feeParams,
         });
+        sentPaymentHash = payHash;
+        setPaymentSignature("signed");
 
         setPaymentStep("Waiting for payment confirmation...");
         await waitForTransactionReceipt(wagmiConfig, { hash: payHash });
@@ -411,16 +485,18 @@ export const useExecutePayment = () => {
       setShowStatusModal(true);
     } catch (e: any) {
       console.error("[EVM Payment Flow] Failed with error:", e);
-      toast.error(parseMetaMaskError(e, "evm"));
+      handleFailure(e, "evm");
     } finally {
       setIsPaying(false);
       setPaymentStep("");
+      setPaymentSignature("none");
     }
   };
 
   return {
     isPaying,
     paymentStep,
+    paymentSignature,
     showStatusModal,
     paymentStatus,
     paymentStatusDetails,
