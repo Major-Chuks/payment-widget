@@ -587,10 +587,10 @@ const PaymentFlow: React.FC = () => {
 
       <div
         className={`${styles.content} ${
-          isDynamic ? styles.dynamicContent : ""
+          isDynamic || isExpired ? styles.dynamicContent : ""
         }`}
       >
-        {!isDynamic && (
+        {!isDynamic && !isExpired && (
           <ProductCard
             recipient={recipientAddress}
             title={pd.product_title}
