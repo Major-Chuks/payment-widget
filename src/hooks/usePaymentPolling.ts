@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { publicPaymentsApi } from "@/api-services/definitions/publicPayments";
 import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus";
 
@@ -17,6 +17,16 @@ export const usePaymentPolling = ({
   onSuccess,
   onFail,
 }: UsePaymentPollingProps) => {
+  // Callers pass new callbacks on every render. Keeping them out of the polling
+  // effect's deps stops re-renders (e.g. the expiry countdown) restarting the timer
+  const onSuccessRef = useRef(onSuccess);
+  const onFailRef = useRef(onFail);
+
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onFailRef.current = onFail;
+  });
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -30,9 +40,9 @@ export const usePaymentPolling = ({
           const result =
             await publicPaymentsApi.get_checkPaymentStatus(gatewayPaymentId);
           if (result.status === "confirmed") {
-            onSuccess(result);
+            onSuccessRef.current(result);
           } else if (result.status === "failed") {
-            onFail(result.error ?? "", result.tx_hash ?? "");
+            onFailRef.current(result.error ?? "", result.tx_hash ?? "");
           }
         } catch (error) {
           console.error("Background polling error:", error);
@@ -41,5 +51,5 @@ export const usePaymentPolling = ({
     }
 
     return () => clearInterval(intervalId);
-  }, [showStatusModal, paymentStatus, gatewayPaymentId, onSuccess, onFail]);
+  }, [showStatusModal, paymentStatus, gatewayPaymentId]);
 };
