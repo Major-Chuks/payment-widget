@@ -27,7 +27,8 @@ function getExplorerUrl(chainId: number | undefined, hash: string) {
 export interface TokenBalance {
     symbol: string;
     contractAddress: string;
-    balance: number;
+    // null while loading or when the read failed, so it isn't mistaken for 0
+    balance: number | null;
     logoUrl?: string;
 }
 
@@ -77,7 +78,7 @@ export function useEVMTransfer(tokens: TokenConfig[]) {
         balance:
             erc20Data?.[i]?.result != null
                 ? parseFloat(formatUnits(erc20Data[i].result as bigint, token.decimals))
-                : 0,
+                : null,
         logoUrl: token.logoUrl,
     }));
 

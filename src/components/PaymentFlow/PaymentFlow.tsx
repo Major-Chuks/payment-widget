@@ -33,7 +33,10 @@ import { ProductCard } from "../ProductCard/ProductCard";
 import { SuccessModal } from "../SuccessModal/SuccessModal";
 import { useExecutePayment } from "./useExecutePayment";
 import { usePaymentExpiration } from "@/hooks/usePaymentExpiration";
-import { PaymentExpiredCard } from "../PaymentExpiredCard/PaymentExpiredCard";
+import {
+  PaymentClosedCard,
+  PaymentClosedReason,
+} from "../PaymentClosedCard/PaymentClosedCard";
 import {
   PaymentCountdown,
   PaymentExpiredWhileSigningNotice,
@@ -42,6 +45,13 @@ import {
 // The checkout closes this long before the merchant's expiry, so a payment
 // signed at the last moment still reaches the backend in time
 const PAYMENT_SAFETY_MARGIN_MS = 60_000;
+
+// SOL kept back for account rent when paying in SOL. It's in SOL, so it
+// doesn't apply to SPL or EVM tokens
+const SOLANA_RENT_RESERVE_SOL = 0.0021;
+
+const isCancelledStatus = (status?: string) =>
+  status === "cancelled" || status === "canceled";
 
 const PaymentFlow: React.FC = () => {
   const [selectedToken, setSelectedToken] = useState<SelectorOption | null>(
@@ -67,6 +77,7 @@ const PaymentFlow: React.FC = () => {
     data: pd,
     isLoading: isPdLoading,
     isError,
+    refetch: refetchPaymentDetails,
   } = useGetPaymentDetailsForPayerQuery(identifier);
 
   const isDynamicFromUrl = useMemo(() => {
@@ -181,7 +192,8 @@ const PaymentFlow: React.FC = () => {
       (t) => t.symbol.toLowerCase() === selectedToken?.symbol?.toLowerCase(),
     );
 
-  const tokenBalance = currentTokenBalanceObj?.balance ?? 0;
+  // null means unknown (not loaded, or the read failed), which never blocks Pay
+  const tokenBalance = currentTokenBalanceObj?.balance ?? null;
   const tokenSymbol =
     currentTokenBalanceObj?.symbol ?? selectedToken?.symbol ?? "";
 
@@ -198,7 +210,17 @@ const PaymentFlow: React.FC = () => {
     executePayment,
   } = useExecutePayment();
 
-  const isPaid = pd?.charge_status === "paid";
+  const chargeStatus = pd?.charge_status?.toLowerCase();
+
+  // A dynamic payment is a single charge: once this page confirms a payment it
+  // stays paid, even though the payment details aren't fetched again
+  const isPaid =
+    chargeStatus === "paid" || (isDynamic && paymentStatus === "confirmed");
+  const isCancelled = isCancelledStatus(chargeStatus);
+
+  // A payment the wallet may still send (or already sent), or its result
+  const isPaymentActive =
+    paymentSignature !== "none" || showStatusModal || showSuccessModal;
 
   const {
     isExpired,
@@ -214,12 +236,19 @@ const PaymentFlow: React.FC = () => {
     safetyMarginMs: PAYMENT_SAFETY_MARGIN_MS,
     // Only a payment the wallet may still send (or already sent) holds the page;
     // expiry during approval or preparation stops the flow instead
-    isCompletedOrInFlight:
-      paymentSignature !== "none" ||
-      showStatusModal ||
-      showSuccessModal ||
-      isPaid,
+    isCompletedOrInFlight: isPaymentActive || isPaid,
   });
+
+  // Why the form is replaced by a closed screen, if it is. A paid dynamic
+  // payment never shows the form again, so it can't be paid twice
+  const closedReason: PaymentClosedReason | null =
+    isDynamic && isPaid
+      ? "paid"
+      : isCancelled && !isPaymentActive && !isPaid
+        ? "cancelled"
+        : isExpired
+          ? "expired"
+          : null;
 
   // Leaving now could lose track of a payment the wallet is sending
   useEffect(() => {
@@ -292,8 +321,8 @@ const PaymentFlow: React.FC = () => {
         !showStatusModal &&
         !showSuccessModal &&
         paymentStatus !== "confirmed" &&
-        paymentStatus !== "submitted" &&
         !isPaid &&
+        !isCancelled &&
         !isExpired,
     },
   );
@@ -367,8 +396,27 @@ const PaymentFlow: React.FC = () => {
 
     setIsRefetchingForPay(true);
     try {
-      const { data: refreshedQuote, isError: isRefreshError } =
-        await refetchQuote();
+      // Alongside the fresh quote, check the charge can still be paid: the
+      // merchant may have cancelled it, or it may already have been paid
+      const [
+        { data: refreshedQuote, isError: isRefreshError },
+        { data: latestPd },
+      ] = await Promise.all([refetchQuote(), refetchPaymentDetails()]);
+
+      const latestStatus = latestPd?.charge_status?.toLowerCase();
+      if (isCancelledStatus(latestStatus)) {
+        toast.error("This payment has been cancelled");
+        return;
+      }
+      if (latestStatus === "expired") {
+        toast.error("This payment session has expired");
+        return;
+      }
+      if (isDynamic && latestStatus === "paid") {
+        toast.error("This payment has already been made");
+        return;
+      }
+
       const currentQuoteId = refreshedQuote?.quote_id || quoteId;
 
       if (!currentQuoteId || isRefreshError) {
@@ -381,7 +429,7 @@ const PaymentFlow: React.FC = () => {
         networkId: selectedNetwork?.id,
         tokenId: selectedToken?.id,
         quoteId: currentQuoteId,
-        pd,
+        pd: latestPd ?? pd,
         customerInfoData,
         isSolana: chain?.toLowerCase() === "solana",
         identifier,
@@ -392,12 +440,12 @@ const PaymentFlow: React.FC = () => {
     }
   };
 
-  const handleReturnToMerchant = () => {
+  const handleReturnToMerchant = (reason: PaymentClosedReason) => {
     const isEmbedded = window.parent && window.parent !== window;
 
     if (isDynamic) {
       emitWidgetEvent("ORKI_CLOSE", {
-        reason: "expired",
+        reason,
         identifier,
         redirect_url: pd?.redirect_url,
       });
@@ -470,6 +518,9 @@ const PaymentFlow: React.FC = () => {
     paymentStatus,
     gatewayPaymentId: paymentStatusDetails?.gateway_payment_id,
     onSuccess: (result) => {
+      // Dynamic payments are settled by this one payment. Reusable links stay
+      // open for the next payer, so their status isn't frozen at "confirmed"
+      if (isDynamic) setPaymentStatus("confirmed");
       setShowStatusModal(false);
       setPaymentStatusDetails((prev) => ({ ...prev, ...result }));
       setShowSuccessModal(true);
@@ -575,6 +626,20 @@ const PaymentFlow: React.FC = () => {
       />
     );
 
+  const priceDenomination = (
+    pd.price_denomination_asset.slug ||
+    pd.price_denomination_asset.code ||
+    ""
+  ).toUpperCase();
+
+  const isNativeToken =
+    selectedToken?.symbol?.toLowerCase() === nativeSymbol.toLowerCase();
+
+  const paidToken = paymentStatusDetails?.payer_token;
+  const paidAmount = paidToken?.amount
+    ? `${paidToken.amount} ${paidToken.symbol ?? ""}`.trim()
+    : undefined;
+
   return (
     <div className={styles.paymentContainer}>
       <Toaster position="top-center" richColors closeButton />
@@ -587,10 +652,10 @@ const PaymentFlow: React.FC = () => {
 
       <div
         className={`${styles.content} ${
-          isDynamic || isExpired ? styles.dynamicContent : ""
+          isDynamic || closedReason ? styles.dynamicContent : ""
         }`}
       >
-        {!isDynamic && !isExpired && (
+        {!isDynamic && !closedReason && (
           <ProductCard
             recipient={recipientAddress}
             title={pd.product_title}
@@ -599,27 +664,22 @@ const PaymentFlow: React.FC = () => {
           />
         )}
 
-        {isExpired ? (
-          <PaymentExpiredCard
+        {closedReason ? (
+          <PaymentClosedCard
+            reason={closedReason}
             price={Number(pd.price) || 0}
-            priceDenomination={(
-              pd.price_denomination_asset.slug ||
-              pd.price_denomination_asset.code ||
-              ""
-            ).toUpperCase()}
+            priceDenomination={priceDenomination}
             expirationDate={expirationDate}
             identifier={identifier}
-            onReturnToMerchant={handleReturnToMerchant}
+            paidAmount={paidAmount}
+            explorerUrl={paymentStatusDetails?.explorer_url}
+            onReturnToMerchant={() => handleReturnToMerchant(closedReason)}
           />
         ) : (
           <PaymentCard
             isWalletConnected={isConnected}
             itemPrice={Number(pd.price) || 0}
-            priceDenomination={(
-              pd.price_denomination_asset.slug ||
-              pd.price_denomination_asset.code ||
-              ""
-            ).toUpperCase()}
+            priceDenomination={priceDenomination}
             onConnectWallet={handleConnectWallet}
             quote={quote}
             disableQuoteRefresh={
@@ -628,7 +688,6 @@ const PaymentFlow: React.FC = () => {
               showStatusModal ||
               showSuccessModal ||
               paymentStatus === "confirmed" ||
-              paymentStatus === "submitted" ||
               isPaid
             }
             refetchQuote={() => {
@@ -651,11 +710,13 @@ const PaymentFlow: React.FC = () => {
             nativeSymbol={nativeSymbol}
             tokenBalance={tokenBalance}
             tokenSymbol={tokenSymbol}
-            isNativeToken={
-              selectedToken?.symbol?.toLowerCase() ===
-              nativeSymbol.toLowerCase()
-            }
+            isNativeToken={isNativeToken}
             tokenBalances={tokenBalances}
+            balanceReserve={
+              chain?.toLowerCase() === "solana" && isNativeToken
+                ? SOLANA_RENT_RESERVE_SOL
+                : 0
+            }
             isQuoteError={isQuoteError}
             quoteError={quoteError}
           />
@@ -706,7 +767,7 @@ const PaymentFlow: React.FC = () => {
       />
 
       {hasExpiry &&
-        !isExpired &&
+        !closedReason &&
         !isPaid &&
         !showSuccessModal &&
         timeLeftMs > 0 && (

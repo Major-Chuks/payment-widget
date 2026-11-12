@@ -41,7 +41,10 @@ interface PaymentCardProps {
   nativeSymbol?: string;
   tokenSymbol?: string;
   isNativeToken: boolean;
-  tokenBalances?: { symbol: string; balance: number }[];
+  tokenBalances?: { symbol: string; balance: number | null }[];
+  // Kept back on top of the quoted amount, in the paying asset's own units
+  // (e.g. Solana account rent when paying in SOL)
+  balanceReserve?: number;
   isQuoteError: boolean;
   quoteError: any;
   onPay: () => void;
@@ -72,6 +75,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   tokenSymbol,
   isNativeToken,
   tokenBalances = [],
+  balanceReserve = 0,
   isQuoteError,
   quoteError,
   onPay,
@@ -86,9 +90,18 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [isSufficientBalance, setIsSufficientBalance] = useState(true);
 
   const quoteReady = !!selectedNetwork && !!selectedToken;
+
+  // An unknown balance (still loading, or the read failed) never blocks Pay:
+  // the wallet will refuse a payment the payer can't cover
+  const compareAmount = isNativeToken ? nativeBalance : tokenBalance;
+  const isSufficientBalance =
+    !quote ||
+    !quoteReady ||
+    compareAmount === null ||
+    compareAmount === undefined ||
+    compareAmount >= Number(quote.target_amount) + balanceReserve;
 
   const tokens: SelectorOption[] = cryptoOptions.map((opt) => {
     const symUpper = opt.slug.toUpperCase();
@@ -102,7 +115,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
       icon: opt.logo,
       symbol: symUpper,
       networks: opt.networks,
-      balance: bal?.balance,
+      balance: bal?.balance ?? undefined,
     };
   });
 
@@ -128,16 +141,6 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   useEffect(() => {
     if (typeof window !== "undefined") setCurrentUrl(window.location.href);
   }, []);
-
-  useEffect(() => {
-    if (quote && quoteReady) {
-      const rentFee = 0.0021;
-      const compareAmount = isNativeToken ? nativeBalance : tokenBalance;
-      setIsSufficientBalance(
-        Number(compareAmount) > Number(quote.target_amount) + rentFee,
-      );
-    }
-  }, [quote, nativeBalance, tokenBalance, quoteReady]);
 
   const fee = 0;
   const totalPrice = itemPrice + fee;

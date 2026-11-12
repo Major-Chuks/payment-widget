@@ -1,4 +1,4 @@
-.expiredCard {
+.card {
   flex: 50%;
   width: 100%;
   max-width: 480px;
@@ -32,7 +32,19 @@
   color: #dc2626;
 }
 
-.clockIcon {
+.paid {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.cancelled {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.icon {
   width: 30px;
   height: 30px;
 }
@@ -80,6 +92,16 @@
 .detailValue {
   color: #0f172a;
   font-weight: 600;
+}
+
+.detailLink {
+  color: #6148c2;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detailLink:hover {
+  text-decoration: underline;
 }
 
 .buttonWrapper {

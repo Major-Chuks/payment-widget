@@ -28,28 +28,41 @@ export const usePaymentPolling = ({
   });
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
     if (
-      showStatusModal &&
-      (paymentStatus === "submitted" || paymentStatus === "pending") &&
-      gatewayPaymentId
+      !showStatusModal ||
+      (paymentStatus !== "submitted" && paymentStatus !== "pending") ||
+      !gatewayPaymentId
     ) {
-      intervalId = setInterval(async () => {
-        try {
-          const result =
-            await publicPaymentsApi.get_checkPaymentStatus(gatewayPaymentId);
-          if (result.status === "confirmed") {
-            onSuccessRef.current(result);
-          } else if (result.status === "failed") {
-            onFailRef.current(result.error ?? "", result.tx_hash ?? "");
-          }
-        } catch (error) {
-          console.error("Background polling error:", error);
-        }
-      }, 5000);
+      return;
     }
 
-    return () => clearInterval(intervalId);
+    // One request at a time, and nothing acted on after cleanup, so a slow
+    // response can't report "confirmed" twice
+    let stopped = false;
+    let inFlight = false;
+
+    const intervalId = setInterval(async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const result =
+          await publicPaymentsApi.get_checkPaymentStatus(gatewayPaymentId);
+        if (stopped) return;
+        if (result.status === "confirmed") {
+          onSuccessRef.current(result);
+        } else if (result.status === "failed") {
+          onFailRef.current(result.error ?? "", result.tx_hash ?? "");
+        }
+      } catch (error) {
+        console.error("Background polling error:", error);
+      } finally {
+        inFlight = false;
+      }
+    }, 5000);
+
+    return () => {
+      stopped = true;
+      clearInterval(intervalId);
+    };
   }, [showStatusModal, paymentStatus, gatewayPaymentId]);
 };

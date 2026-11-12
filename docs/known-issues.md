@@ -1,6 +1,8 @@
 # Known issues
 
-Issues found on 2026-11-02 while fixing the bug where setting `expires_at` stopped the payment status endpoint being called. They were left out of that fix to keep it small, and none of them are fixed yet.
+Issues found on 2026-11-02 while fixing the bug where setting `expires_at` stopped the payment status endpoint being called. They were left out of that fix to keep it small.
+
+Issues 1, 2, 3, 4, 5 and 7 were fixed on 2026-11-11, because Orki POS sends every customer through this checkout ([Fixed for Orki POS](#fixed-for-orki-pos)). Issues 6 and 8 are still open.
 
 **How each issue was checked**
 
@@ -18,16 +20,16 @@ Keep this in mind when fixing anything below:
 
 ## Summary
 
-| # | Issue | Checked by | Affects |
-|---|---|---|---|
-| 1 | Quote doesn't load on a fresh page | Reproduced | Every first payment |
-| 2 | Expired screen shown after a successful payment | Reproduced | Payments with an expiry |
-| 3 | Paid dynamic payments can be paid again | Partly reproduced | Dynamic payments |
-| 4 | Balance check can wrongly block Pay | From the code | Payers with slow or failed balance loads, or close to the exact amount |
-| 5 | Quote refresh countdown may stall | From the code | Payments with an expiry |
-| 6 | Usage limits aren't visible to the widget | From the code | Non-dynamic links with a limit |
-| 7 | Status requests can overlap | From the code | Slow status responses |
-| 8 | ESLint can't run | Reproduced | Development |
+| # | Issue | Checked by | Affects | Status |
+|---|---|---|---|---|
+| 1 | Quote doesn't load on a fresh page | Reproduced | Every first payment | Fixed |
+| 2 | Expired screen shown after a successful payment | Reproduced | Payments with an expiry | Fixed for dynamic payments |
+| 3 | Paid dynamic payments can be paid again | Partly reproduced | Dynamic payments | Fixed |
+| 4 | Balance check can wrongly block Pay | From the code | Payers with slow or failed balance loads, or close to the exact amount | Fixed |
+| 5 | Quote refresh countdown may stall | From the code | Payments with an expiry | Fixed |
+| 6 | Usage limits aren't visible to the widget | From the code | Non-dynamic links with a limit | Open |
+| 7 | Status requests can overlap | From the code | Slow status responses | Fixed |
+| 8 | ESLint can't run | Reproduced | Development | Open |
 
 ## 1. Quote doesn't load on a fresh page
 
@@ -39,6 +41,8 @@ Keep this in mind when fixing anything below:
 
 **Before fixing:** this turns on issues 4 and 5 for every first payment, so handle them together.
 
+**Fixed (2026-11-11):** both `"submitted"` checks removed, together with the fixes for issues 4 and 5.
+
 ## 2. Expired screen shown after a successful payment
 
 **What happens:** if a payer closes the success modal after the deadline, the page shows "Payment Expired". Dynamic payments also send `ORKI_PAYMENT_EXPIRED` to the merchant, even though the payment succeeded.
@@ -48,6 +52,8 @@ Keep this in mind when fixing anything below:
 **Suggested fix:** for dynamic payments only, set `paymentStatus` to `"confirmed"` in `onSuccess` and include that status in `isPaid`. Applying this to non-dynamic links would freeze the quote and countdown for their next payment.
 
 **To decide:** what a non-dynamic link should show here. The expired screen is accurate because the link can't take new payments, but it comes straight after a success message.
+
+**Fixed (2026-11-11), for dynamic payments:** `onSuccess` sets `paymentStatus` to `"confirmed"` for dynamic payments only, and `isPaid` includes it, so a paid dynamic payment never shows the expired screen or sends `ORKI_PAYMENT_EXPIRED`. Non-dynamic links are unchanged and still waiting on the decision above.
 
 ## 3. Paid dynamic payments can be paid again
 
@@ -61,6 +67,8 @@ Keep this in mind when fixing anything below:
 
 **To confirm:** whether the backend rejects a second payment on a settled charge.
 
+**Fixed (2026-11-11):** a paid dynamic payment now shows a "Payment Complete" screen instead of the form. That covers both a payment made on the page and a page opened with `charge_status: "paid"`. Pay also refetches the payment details and stops if the charge has been paid since the page loaded. The backend check above still matters for any other client.
+
 ## 4. Balance check can wrongly block Pay
 
 **What happens:** the check in `PaymentCard.tsx` can show "Insufficient balance" and disable Pay for a payer who has enough funds, in two ways:
@@ -70,6 +78,8 @@ Keep this in mind when fixing anything below:
 
 **Suggested fix:** tell "unknown" apart from a real 0, and apply the rent fee only where it makes sense, in the right units.
 
+**Fixed (2026-11-11):** unknown token balances are now `null` rather than 0 (`useEVMTransfer`, `useTransfer`, `PaymentFlow`), and an unknown balance never blocks Pay. The 0.0021 reserve only applies when paying in SOL. A balance equal to the quoted amount is enough. The check is now worked out on each render instead of in an effect.
+
 ## 5. Quote refresh countdown may stall
 
 **What happens:** on payments with an expiry, the countdown may stop ticking and the 60-second quote refresh may not fire. Pay still fetches a new quote, so the payment itself isn't affected.
@@ -77,6 +87,8 @@ Keep this in mind when fixing anything below:
 **Cause:** this is the same pattern as the status polling bug. `useQuoteCountdown` has `onRefresh` in its effect dependencies, and `PaymentFlow` passes a new `refetchQuote` function on every render. The expiry countdown re-renders the page every second, which restarts the timer.
 
 **Suggested fix:** hold `onRefresh` in a ref, as `usePaymentPolling` now does with its callbacks.
+
+**Fixed (2026-11-11):** `onRefresh` is held in a ref, so re-renders no longer restart the timer. The refresh also moved out of the state updater, which React may run twice.
 
 **Note:** this currently only shows after a first payment, because of issue 1.
 
@@ -92,6 +104,20 @@ Keep this in mind when fixing anything below:
 
 **Suggested fix:** skip a tick while a request is in flight, and ignore responses that arrive after the effect has been cleaned up.
 
+**Fixed (2026-11-11):** both, in `usePaymentPolling`.
+
 ## 8. ESLint can't run
 
 **What happens:** ESLint exits with `ERR_MODULE_NOT_FOUND`. `eslint.config.mjs` imports `eslint-config-next/core-web-vitals`, which doesn't resolve with the installed package. The error suggests importing `eslint-config-next/core-web-vitals.js` instead.
+
+**Update (2026-11-11):** adding `.js` isn't enough. It then fails with "nextVitals is not iterable", because `eslint-config-next` 15 exports the old (eslintrc) config format, while `eslint.config.mjs` is written for the flat configs of version 16. Either wrap the configs with `FlatCompat` from `@eslint/eslintrc`, or upgrade `eslint-config-next` to 16 along with Next. `next build` still passes, because it only warns when ESLint fails.
+
+## Fixed for Orki POS
+
+Orki POS (a tablet till) creates single-use charges that customers pay in this checkout. The fixes above were made for it on 2026-11-11, along with these additions:
+
+- **Cancelled payments.** When the payment details have `charge_status: "cancelled"` (or `"canceled"`), the checkout shows a "Payment Cancelled" screen instead of the form, unless a payment is already under way on the page. The value is assumed from the Orki POS spec and still needs confirming with the backend.
+- **Check before paying.** Pay now refetches the payment details alongside the quote. It stops before anything is signed if the charge has been cancelled, has expired or, for dynamic payments, has been paid.
+- **One screen for closed payments.** `PaymentExpiredCard` became `PaymentClosedCard`, which shows the expired, paid and cancelled states. "Return to Merchant" sends `ORKI_CLOSE` with the matching `reason`: `"expired"`, `"paid"` or `"cancelled"`. Only `"expired"` was sent before, and the embed widget doesn't read `reason`.
+
+**How these were checked:** the type check and `next build` pass, and lint shows no new problems. In Chrome, the page was rendered with the payment details stubbed as open, paid, cancelled, expired by time, expired by the backend, and a paid reusable link. Each showed the right screen. Steps that need a connected wallet weren't run: the quote on a fresh page, the countdown, the balance check, and the paid screen after paying on the page. They still need a real wallet on sandbox.

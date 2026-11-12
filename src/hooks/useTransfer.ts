@@ -14,7 +14,8 @@ export interface NormalizedTransfer {
   tokenBalances: {
     symbol: string;
     contractAddress: string;
-    balance: number;
+    // null when unknown (still loading or the read failed), not 0
+    balance: number | null;
     logoUrl?: string;
   }[];
   supportedTokens: TokenConfig[];
