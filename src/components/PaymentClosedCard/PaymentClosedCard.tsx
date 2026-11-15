@@ -6,10 +6,12 @@ import Button from "../Button/Button";
 import { formatAddress } from "@/utils";
 
 // Why the payment can no longer take a transaction
-export type PaymentClosedReason = "expired" | "paid" | "cancelled";
+export type PaymentClosedReason = "expired" | "paid" | "cancelled" | "failed";
 
 interface PaymentClosedCardProps {
   reason: PaymentClosedReason;
+  // Who the customer was paying, for charge checkouts
+  merchantName?: string;
   price?: string | number;
   priceDenomination?: string;
   expirationDate?: Date | null;
@@ -37,6 +39,11 @@ const COPY: Record<PaymentClosedReason, { title: string; description: string }> 
       description:
         "The merchant cancelled this payment, so it can no longer be paid. Ask the merchant for a new one if you still want to pay.",
     },
+    failed: {
+      title: "Payment Failed",
+      description:
+        "The transaction for this payment failed on the network, so the payment wasn't completed. Ask the merchant for a new one if you still want to pay.",
+    },
   };
 
 const ReasonIcon: React.FC<{ reason: PaymentClosedReason }> = ({ reason }) => (
@@ -54,7 +61,7 @@ const ReasonIcon: React.FC<{ reason: PaymentClosedReason }> = ({ reason }) => (
   >
     {reason === "paid" ? (
       <polyline points="20 6 9 17 4 12" />
-    ) : reason === "cancelled" ? (
+    ) : reason === "cancelled" || reason === "failed" ? (
       <>
         <circle cx="12" cy="12" r="10" />
         <line x1="15" y1="9" x2="9" y2="15" />
@@ -71,6 +78,7 @@ const ReasonIcon: React.FC<{ reason: PaymentClosedReason }> = ({ reason }) => (
 
 export const PaymentClosedCard: React.FC<PaymentClosedCardProps> = ({
   reason,
+  merchantName,
   price,
   priceDenomination,
   expirationDate,
@@ -103,6 +111,13 @@ export const PaymentClosedCard: React.FC<PaymentClosedCardProps> = ({
       <p className={styles.description}>{COPY[reason].description}</p>
 
       <div className={styles.detailsCard}>
+        {merchantName && (
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Merchant</span>
+            <span className={styles.detailValue}>{merchantName}</span>
+          </div>
+        )}
+
         {price !== undefined && price !== null && (
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Amount</span>

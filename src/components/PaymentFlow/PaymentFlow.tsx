@@ -217,6 +217,10 @@ const PaymentFlow: React.FC = () => {
   const isPaid =
     chargeStatus === "paid" || (isDynamic && paymentStatus === "confirmed");
   const isCancelled = isCancelledStatus(chargeStatus);
+  // The customer's transaction failed on chain. The backend never marks a
+  // charge failed on a timer, so this is final
+  const isFailed = chargeStatus === "failed";
+  const merchantName = pd?.merchant?.name || undefined;
 
   // A payment the wallet may still send (or already sent), or its result
   const isPaymentActive =
@@ -246,9 +250,11 @@ const PaymentFlow: React.FC = () => {
       ? "paid"
       : isCancelled && !isPaymentActive && !isPaid
         ? "cancelled"
-        : isExpired
-          ? "expired"
-          : null;
+        : isFailed && !isPaymentActive && !isPaid
+          ? "failed"
+          : isExpired
+            ? "expired"
+            : null;
 
   // Leaving now could lose track of a payment the wallet is sending
   useEffect(() => {
@@ -410,6 +416,10 @@ const PaymentFlow: React.FC = () => {
       }
       if (latestStatus === "expired") {
         toast.error("This payment session has expired");
+        return;
+      }
+      if (latestStatus === "failed") {
+        toast.error("This payment has failed. Ask the merchant for a new one");
         return;
       }
       if (isDynamic && latestStatus === "paid") {
@@ -667,6 +677,7 @@ const PaymentFlow: React.FC = () => {
         {closedReason ? (
           <PaymentClosedCard
             reason={closedReason}
+            merchantName={merchantName}
             price={Number(pd.price) || 0}
             priceDenomination={priceDenomination}
             expirationDate={expirationDate}
@@ -677,6 +688,7 @@ const PaymentFlow: React.FC = () => {
           />
         ) : (
           <PaymentCard
+            merchantName={merchantName}
             isWalletConnected={isConnected}
             itemPrice={Number(pd.price) || 0}
             priceDenomination={priceDenomination}

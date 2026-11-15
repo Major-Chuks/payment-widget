@@ -28,6 +28,10 @@ export interface get_paymentDetailsForPayer {
   button_color: string;
   // Only set for dynamic payments (ISO 8601 or epoch)
   expires_at?: string | null;
+  // Who the customer is paying: the business's company name, or the account
+  // holder's full name. Sent for charge checkouts (POS and dynamic payment
+  // links), not for plain payment links
+  merchant?: { name: string } | null;
 }
 
 export interface ProductImage {

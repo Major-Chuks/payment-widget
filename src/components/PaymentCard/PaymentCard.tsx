@@ -24,6 +24,8 @@ import styles from "./PaymentCard.module.css";
 import { QuoteRefreshButton } from "./QuoteRefreshButton";
 
 interface PaymentCardProps {
+  // Who the customer is paying, for charge checkouts (POS and dynamic links)
+  merchantName?: string;
   isWalletConnected: boolean;
   itemPrice: number;
   priceDenomination: string;
@@ -57,6 +59,7 @@ interface PaymentCardProps {
   onValidate: (isValid: boolean) => void;
 }
 export const PaymentCard: React.FC<PaymentCardProps> = ({
+  merchantName,
   isWalletConnected,
   itemPrice,
   priceDenomination,
@@ -148,6 +151,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   if (!isWalletConnected) {
     return (
       <div className={styles.paymentCard}>
+        {merchantName && (
+          <p className={styles.payee}>
+            Paying <strong>{merchantName}</strong>
+          </p>
+        )}
         <div className={styles.paymentHeader}>
           <span className={styles.usdcIcon}>
             <Image src={usdcIcon} alt="" />
@@ -174,6 +182,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
   return (
     <div className={styles.paymentCard}>
+      {merchantName && (
+        <p className={styles.payee}>
+          Paying <strong>{merchantName}</strong>
+        </p>
+      )}
       <div className={styles.dropdownWrapper}>
         <DropdownSelector
           options={tokens}

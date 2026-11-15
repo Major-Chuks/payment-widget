@@ -44,6 +44,12 @@
   color: #64748b;
 }
 
+.failed {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
 .icon {
   width: 30px;
   height: 30px;
