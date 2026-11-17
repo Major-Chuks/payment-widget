@@ -39,10 +39,6 @@ import {
   PaymentExpiredWhileSigningNotice,
 } from "../PaymentCountdown/PaymentCountdown";
 
-// The checkout closes this long before the merchant's expiry, so a payment
-// signed at the last moment still reaches the backend in time
-const PAYMENT_SAFETY_MARGIN_MS = 60_000;
-
 // SOL kept back for account rent when paying in SOL. It's in SOL, so it
 // doesn't apply to SPL or EVM tokens
 const SOLANA_RENT_RESERVE_SOL = 0.0021;
@@ -234,7 +230,6 @@ const PaymentFlow: React.FC = () => {
   } = usePaymentExpiration({
     expiresAt: pd?.expires_at,
     chargeStatus: pd?.charge_status,
-    safetyMarginMs: PAYMENT_SAFETY_MARGIN_MS,
     // Only a payment the wallet may still send (or already sent) holds the page;
     // expiry during approval or preparation stops the flow instead
     isCompletedOrInFlight: isPaymentActive || isPaid,
