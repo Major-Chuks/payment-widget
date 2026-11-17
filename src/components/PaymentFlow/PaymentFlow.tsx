@@ -5,11 +5,8 @@ import {
   useGetPayerSelectableSwapTokensForAPaymentQuery,
   useGetPaymentDetailsForPayerQuery,
 } from "@/api-services/generated";
-import {
-  useAppKit,
-  useAppKitNetwork,
-  useDisconnect,
-} from "@reown/appkit/react";
+import { useAppKit, useAppKitNetwork } from "@reown/appkit/react";
+import { useDisconnectWallet } from "@/hooks/useDisconnectWallet";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
@@ -171,7 +168,7 @@ const PaymentFlow: React.FC = () => {
 
   const { open } = useAppKit();
   const { switchNetwork } = useAppKitNetwork();
-  const { disconnect } = useDisconnect();
+  const disconnect = useDisconnectWallet();
 
   const currentNetworkTokenAddress = selectedToken?.networks?.find(
     (n) =>

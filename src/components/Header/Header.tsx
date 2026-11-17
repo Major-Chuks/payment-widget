@@ -8,7 +8,8 @@ import CheckIconRound from "@/assets/CheckIconRound";
 import Button from "../Button/Button";
 import { formatAddress } from "@/utils";
 import SignOutIcon from "@/assets/SignOutIcon";
-import { useDisconnect, useAppKit, useAppKitNetwork } from '@reown/appkit/react'
+import { useDisconnectWallet } from "@/hooks/useDisconnectWallet";
+import { toast } from "sonner";
 import { Copy } from "../Copy/Copy";
 
 interface HeaderProps {
@@ -23,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [disconnect, setDisconnect] = useState(false);
 
-  const { disconnect: disconnectAccount } = useDisconnect();
+  const disconnectAccount = useDisconnectWallet();
 
   const handleDisconnect = async () => {
     try {
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
       setDisconnect(false);
     } catch (e) {
       console.error(e);
+      toast.error("Couldn't disconnect the wallet. Check your connection and try again.");
     }
   };
 
