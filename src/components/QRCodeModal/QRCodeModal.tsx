@@ -41,12 +41,14 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
 
           <div className={styles.instruction}>
             <PhoneIcon />
-            Open camera app to scan
+            Scan with your crypto wallet app
           </div>
 
+          {/* A wallet's own scanner opens the checkout inside the wallet, where
+              paying needs no switching between apps */}
           <div className={styles.footer}>
-            This QR code will open the checkout page on your mobile device with
-            WalletConnect
+            Your wallet opens this checkout in its own browser, where you can
+            connect and pay
           </div>
         </Dialog.Content>
       </Dialog.Portal>

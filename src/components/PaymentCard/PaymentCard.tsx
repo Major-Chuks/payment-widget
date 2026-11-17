@@ -11,6 +11,11 @@ import usdcIcon from "@/assets/tokens/usdc.svg";
 import WarningIcon from "@/assets/WarningIcon";
 import { clipAmount } from "@/utils";
 import { testnetName } from "@/utils/networkMapping";
+import {
+  shouldOfferWalletBrowsers,
+  walletBrowserLinks,
+  WalletBrowserLink,
+} from "@/utils/walletBrowserLinks";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
@@ -144,8 +149,15 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
     onNetworkSelect(null);
   };
 
+  // Set after mount: they depend on the browser, which the server can't see
+  const [walletLinks, setWalletLinks] = useState<WalletBrowserLink[]>([]);
+
   useEffect(() => {
-    if (typeof window !== "undefined") setCurrentUrl(window.location.href);
+    if (typeof window === "undefined") return;
+    setCurrentUrl(window.location.href);
+    if (shouldOfferWalletBrowsers()) {
+      setWalletLinks(walletBrowserLinks(window.location.href));
+    }
   }, []);
 
   const fee = 0;
@@ -176,6 +188,21 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
             CONNECT WALLET
           </Button>
         </div>
+        {walletLinks.length > 0 && (
+          <div className={styles.walletLinks}>
+            <p className={styles.walletLinksLabel}>
+              Paying from your phone? Open this page in your wallet app to
+              connect and pay without switching apps.
+            </p>
+            <div className={styles.walletLinkButtons}>
+              {walletLinks.map((link) => (
+                <a key={link.name} href={link.href} className={styles.walletLink}>
+                  Open in {link.name}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <div className={styles.poweredBy}>
           <Image src={poweredLogo} alt="" />
         </div>

@@ -86,6 +86,47 @@
   letter-spacing: -0.46px;
 }
 
+/* Phone browsers only: open the checkout inside a wallet app */
+.walletLinks {
+  margin: -16px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.walletLinksLabel {
+  margin: 0;
+  color: var(--Grey-600, #64748b);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.walletLinkButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.walletLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--Grey-900, #0c0c0e);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.walletLink:active {
+  background: #f8f9fa;
+}
+
 .poweredBy {
   display: flex;
   align-items: center;
