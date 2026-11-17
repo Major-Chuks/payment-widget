@@ -606,7 +606,10 @@ const PaymentFlow: React.FC = () => {
   useEffect(() => {
     if (!selectedNetwork) return;
 
-    const appKitNetwork = findAppKitNetwork(selectedNetwork.name);
+    const appKitNetwork = findAppKitNetwork({
+      slug: selectedNetwork.symbol,
+      name: selectedNetwork.name,
+    });
     if (!appKitNetwork) {
       toast.error("Selected network is not supported");
       return;

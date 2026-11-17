@@ -72,8 +72,34 @@ export const SUPPORTED_CHAINS = {
   ] as NetworkConfig[],
 };
 
+/**
+ * Sandbox runs on test networks. Its API names networks like mainnet ("base",
+ * "ethereum", "polygon") but gives test-network token addresses, so the
+ * checkout picks the test network itself. A checkout counts as sandbox when
+ * its API address or its own domain contains "sandbox".
+ */
+export const IS_TESTNET =
+  /sandbox/i.test(process.env.NEXT_PUBLIC_API_BASE_URL ?? "") ||
+  (typeof window !== "undefined" &&
+    /sandbox/i.test(window.location.hostname));
+
+/** The test network used in place of each mainnet on sandbox. */
+export const TESTNET_FOR: Record<string, AppKitNetwork> = {
+  [String(base.id)]: baseSepolia,
+  [String(polygon.id)]: polygonAmoy,
+  [String(mainnet.id)]: sepolia,
+};
+
+// Only this environment's networks, so a sandbox payment can't reach mainnet
+// (or the reverse). The first one is where wallets start.
+const evmNetworks: AppKitNetwork[] = IS_TESTNET
+  ? [baseSepolia, polygonAmoy, sepolia]
+  : [base, polygon, mainnet];
+
+// Solana stays on devnet in both environments, as before: the backend's
+// Solana USDC is the devnet token on production too.
 export const networks = [
-  ...SUPPORTED_CHAINS.evm.map((n) => n.appKitNetwork),
+  ...evmNetworks,
   ...SUPPORTED_CHAINS.solana.map((n) => n.appKitNetwork),
 ] as [AppKitNetwork, ...AppKitNetwork[]];
 
@@ -96,7 +122,7 @@ export function getNativeCurrencyByChainId(
 export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId,
-  networks: [base, baseSepolia, polygon, polygonAmoy, mainnet, sepolia],
+  networks: evmNetworks,
 });
 
 export const config = wagmiAdapter.wagmiConfig;

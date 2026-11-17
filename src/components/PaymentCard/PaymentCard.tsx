@@ -10,6 +10,7 @@ import qrcodeIcon from "@/assets/qrcode-icon.svg";
 import usdcIcon from "@/assets/tokens/usdc.svg";
 import WarningIcon from "@/assets/WarningIcon";
 import { clipAmount } from "@/utils";
+import { testnetName } from "@/utils/networkMapping";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { AdditionalInformation } from "../AdditionalInformation/AdditionalInformation";
@@ -130,6 +131,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
     ? selectedCryptoOption.networks.map((net) => ({
         id: net.id,
         name: net.title,
+        // On sandbox, the test network the payment really uses ("Base Sepolia")
+        subtitle: testnetName(net.slug),
         icon: net.logo,
         symbol: net.slug.toUpperCase(),
         tokenAddress: net.token_address,
