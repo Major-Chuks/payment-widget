@@ -501,6 +501,18 @@ const PaymentFlow: React.FC = () => {
     }
   };
 
+  // Only a dynamic payment started from the merchant's site has somewhere to
+  // go back to: it's embedded there, was opened by it in a new tab, or has a
+  // redirect address. A POS sale (also dynamic) is opened by scanning a QR
+  // code, so there's nothing to return to, and a page can't close a tab the
+  // customer opened, so the closed screen then shows no button
+  const canReturnToMerchant =
+    isDynamic &&
+    typeof window !== "undefined" &&
+    (window.parent !== window ||
+      !!pd?.redirect_url ||
+      (!!window.opener && !window.opener.closed));
+
   const handleReturnToMerchant = (reason: PaymentClosedReason) => {
     const isEmbedded = window.parent && window.parent !== window;
 
@@ -739,7 +751,11 @@ const PaymentFlow: React.FC = () => {
             identifier={identifier}
             paidAmount={paidAmount}
             explorerUrl={paymentStatusDetails?.explorer_url}
-            onReturnToMerchant={() => handleReturnToMerchant(closedReason)}
+            onReturnToMerchant={
+              canReturnToMerchant
+                ? () => handleReturnToMerchant(closedReason)
+                : undefined
+            }
           />
         ) : (
           <PaymentCard

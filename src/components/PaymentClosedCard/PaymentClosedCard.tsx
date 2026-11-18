@@ -19,7 +19,8 @@ interface PaymentClosedCardProps {
   // Only known when the payment was made on this page
   paidAmount?: string;
   explorerUrl?: string;
-  onReturnToMerchant: () => void;
+  /** Leave out when there's no merchant page to go back to (e.g. a POS sale). */
+  onReturnToMerchant?: () => void;
 }
 
 const COPY: Record<PaymentClosedReason, { title: string; description: string }> =
@@ -165,11 +166,13 @@ export const PaymentClosedCard: React.FC<PaymentClosedCardProps> = ({
         )}
       </div>
 
-      <div className={styles.buttonWrapper}>
-        <Button variant="primary" onClick={onReturnToMerchant}>
-          Return to Merchant
-        </Button>
-      </div>
+      {onReturnToMerchant && (
+        <div className={styles.buttonWrapper}>
+          <Button variant="primary" onClick={onReturnToMerchant}>
+            Return to Merchant
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

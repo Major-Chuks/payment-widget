@@ -83,6 +83,11 @@
   gap: 10px;
 }
 
+/* No button below it (e.g. a POS sale): the card's own padding is enough */
+.detailsCard:last-child {
+  margin-bottom: 0;
+}
+
 .detailRow {
   display: flex;
   justify-content: space-between;
