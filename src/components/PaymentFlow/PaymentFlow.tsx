@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  publicPaymentsKeys,
   useGetCreateAShortLivedExchangeRateQuoteForAPaymentQuery,
   useGetPayerSelectableSwapTokensForAPaymentQuery,
   useGetPaymentDetailsForPayerQuery,
 } from "@/api-services/generated";
 import { useAppKit, useAppKitNetwork } from "@reown/appkit/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDisconnectWallet } from "@/hooks/useDisconnectWallet";
 import { useParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -13,7 +15,14 @@ import { toast, Toaster } from "sonner";
 import styles from "./PaymentFlow.module.css";
 
 import { get_checkPaymentStatus } from "@/api-services/types/publicPayments/get_checkPaymentStatus";
-import { SwapOptions } from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import {
+  get_paymentDetailsForPayer,
+  SwapOptions,
+} from "@/api-services/types/publicPayments/get_paymentDetailsForPayer";
+import {
+  CheckoutStatusEvent,
+  useCheckoutStatusChannel,
+} from "@/hooks/useCheckoutStatusChannel";
 import { usePaymentPolling } from "@/hooks/usePaymentPolling";
 import { useTransfer } from "@/hooks/useTransfer";
 import { emitWidgetEvent } from "@/utils/emitWidgetEvent";
@@ -43,6 +52,9 @@ import {
 // doesn't apply to SPL or EVM tokens
 const SOLANA_RENT_RESERVE_SOL = 0.0021;
 
+// How often a charge's status is checked while its live channel is down
+const STATUS_CHECK_INTERVAL_MS = 5000;
+
 const isCancelledStatus = (status?: string) =>
   status === "cancelled" || status === "canceled";
 
@@ -69,9 +81,37 @@ const PaymentFlow: React.FC = () => {
   const {
     data: pd,
     isLoading: isPdLoading,
-    isError,
     refetch: refetchPaymentDetails,
   } = useGetPaymentDetailsForPayerQuery(identifier);
+
+  // Charges (chg_…) report status changes as they happen, such as the cashier
+  // cancelling a POS sale. Apply them straight to the loaded details, so the
+  // page switches at once without fetching
+  const queryClient = useQueryClient();
+  const chargeToken = identifier?.startsWith("chg_") ? identifier : null;
+  const applyCheckoutStatus = async ({
+    charge_status,
+    expires_at,
+  }: CheckoutStatusEvent) => {
+    const queryKey = publicPaymentsKeys.get_paymentDetailsForPayer(identifier);
+    // A fetch already under way may predate this change; drop it so its
+    // answer can't undo it
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData<get_paymentDetailsForPayer>(
+      queryKey,
+      (current) =>
+        current && {
+          ...current,
+          charge_status,
+          ...(expires_at ? { expires_at } : {}),
+        },
+    );
+  };
+  const isStatusLive = useCheckoutStatusChannel(chargeToken, {
+    onStatus: applyCheckoutStatus,
+    // Catch up on anything sent before the channel was joined
+    onSubscribed: () => void refetchPaymentDetails(),
+  });
 
   const isDynamicFromUrl = useMemo(() => {
     if (identifier?.startsWith("chg_")) return true;
@@ -247,6 +287,25 @@ const PaymentFlow: React.FC = () => {
           : isExpired
             ? "expired"
             : null;
+
+  // Without the live channel, check a charge every few seconds while the
+  // customer can still pay, so a cancel still shows within seconds
+  const shouldCheckStatus =
+    !!chargeToken &&
+    !!pd &&
+    !isStatusLive &&
+    !closedReason &&
+    !isPaymentActive &&
+    !isPaid;
+
+  useEffect(() => {
+    if (!shouldCheckStatus) return;
+    const intervalId = setInterval(
+      () => void refetchPaymentDetails(),
+      STATUS_CHECK_INTERVAL_MS,
+    );
+    return () => clearInterval(intervalId);
+  }, [shouldCheckStatus, refetchPaymentDetails]);
 
   // Leaving now could lose track of a payment the wallet is sending
   useEffect(() => {
@@ -623,7 +682,8 @@ const PaymentFlow: React.FC = () => {
     isPdLoading || (!!pd?.allows_token_swaps && isFetchingSwapTokens);
 
   if (isLoading) return <LoadingState isDynamic={isDynamic} />;
-  if (!pd || isError)
+  // Only when nothing loaded: a failed background check keeps the page as is
+  if (!pd)
     return (
       <ErrorState
         message="Failed to load payment details."
