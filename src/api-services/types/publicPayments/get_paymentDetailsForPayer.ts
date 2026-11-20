@@ -6,11 +6,15 @@ export interface get_paymentDetailsForPayer {
   checkout_type?: string;
   // "deposits" for Deposit links and Deposit charges made by API
   kind?: string;
+  // Who made the charge. "deposit_link": a dashboard Deposit link, which
+  // goes back to the amount step when its checkout runs out. "deposits": an
+  // API Deposit charge, which expires for good
+  charge_source?: string;
   // Includes "awaiting_amount": a Deposit link where the payer hasn't
   // entered an amount yet
   charge_status?: string;
-  // null while charge_status is "awaiting_amount". A Deposit's comes with 8
-  // decimals, such as "1.00000000"
+  // null while charge_status is "awaiting_amount". In the currency's
+  // decimals ("49.99"), crypto without trailing zeros
   price: string | null;
   // "active" or "inactive". An inactive Deposit's link still loads but
   // refuses an amount

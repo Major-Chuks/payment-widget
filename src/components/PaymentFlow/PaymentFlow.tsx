@@ -298,6 +298,14 @@ const PaymentFlow: React.FC = () => {
     isCompletedOrInFlight: isPaymentActive || isPaid,
   });
 
+  // A dashboard Deposit link goes back to the amount step when its checkout
+  // runs out, and expires only when the link itself does. So this page's
+  // clock never closes it; only the server's "expired" does. An API Deposit
+  // charge ("deposits") expires for good, like any other charge
+  const reopensOnLapse = pd?.charge_source === "deposit_link";
+  const isClosedByExpiry =
+    isExpired && (!reopensOnLapse || chargeStatus === "expired");
+
   // Why the form is replaced by a closed screen, if it is. A paid dynamic
   // payment never shows the form again, so it can't be paid twice
   const closedReason: PaymentClosedReason | null =
@@ -307,16 +315,28 @@ const PaymentFlow: React.FC = () => {
         ? "cancelled"
         : isFailed && !isPaymentActive && !isPaid
           ? "failed"
-          : isExpired
+          : isClosedByExpiry
             ? "expired"
             : null;
 
-  // A Deposit link's 20-minute checkout ran out here, but the server hasn't
-  // moved it on yet: it either reopens the link for a new amount or expires it
-  const mayReopenDeposit =
-    pd?.kind === "deposits" &&
-    closedReason === "expired" &&
-    chargeStatus === "pending";
+  // The Deposit link's countdown reached zero: fetch where it is now (the
+  // amount step again, or expired) until the server has moved it on
+  const awaitsReopen =
+    reopensOnLapse &&
+    isExpired &&
+    chargeStatus !== "expired" &&
+    !isPaymentActive &&
+    !isPaid;
+
+  useEffect(() => {
+    if (!awaitsReopen) return;
+    void refetchPaymentDetails();
+    const intervalId = setInterval(
+      () => void refetchPaymentDetails(),
+      STATUS_CHECK_INTERVAL_MS,
+    );
+    return () => clearInterval(intervalId);
+  }, [awaitsReopen, refetchPaymentDetails]);
 
   // Without the live channel, check a charge every few seconds while the
   // customer can still pay, so a cancel still shows within seconds
@@ -324,7 +344,10 @@ const PaymentFlow: React.FC = () => {
     !!chargeToken &&
     !!pd &&
     !isStatusLive &&
-    ((!closedReason && !isPaymentActive && !isPaid) || mayReopenDeposit);
+    !closedReason &&
+    !awaitsReopen &&
+    !isPaymentActive &&
+    !isPaid;
 
   useEffect(() => {
     if (!shouldCheckStatus) return;
@@ -350,14 +373,20 @@ const PaymentFlow: React.FC = () => {
 
   // Notify the merchant once, the moment the expired screen is shown
   useEffect(() => {
-    if (!isExpired || !isDynamic || hasEmittedExpiredRef.current) return;
+    if (!isClosedByExpiry || !isDynamic || hasEmittedExpiredRef.current) return;
     hasEmittedExpiredRef.current = true;
     emitWidgetEvent("ORKI_PAYMENT_EXPIRED", {
       identifier,
       expires_at: pd?.expires_at,
       redirect_url: pd?.redirect_url,
     });
-  }, [isExpired, isDynamic, identifier, pd?.expires_at, pd?.redirect_url]);
+  }, [
+    isClosedByExpiry,
+    isDynamic,
+    identifier,
+    pd?.expires_at,
+    pd?.redirect_url,
+  ]);
 
   const emittedUnrecordedTxHashRef = useRef("");
 

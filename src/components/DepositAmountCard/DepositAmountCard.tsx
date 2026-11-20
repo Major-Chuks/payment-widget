@@ -29,15 +29,34 @@ interface DepositAmountCardProps {
 
 const INACTIVE_MESSAGE = "This link is no longer available.";
 
+// Errors a different amount can't fix, by the API's `reason`
+const BLOCKING_REASONS: Record<string, string> = {
+  link_inactive: INACTIVE_MESSAGE,
+  link_closed: "This link can no longer be paid.",
+  merchant_unavailable: "This merchant can't take payments right now.",
+  link_not_found: "Link not found.",
+};
+
+// The link moved on (paid, expired, confirming or set in another tab): the
+// payment details show where it is now
+const STALE_REASONS = new Set([
+  "amount_already_set",
+  "payment_processing",
+  "link_paid",
+  "link_expired",
+]);
+
 // The API accepts up to 12 whole digits
 const MAX_WHOLE_DIGITS = 12;
 
-const fieldMessage = (error: ApiError) =>
+const errorBody = (error: ApiError) =>
   (
     error.originalError as {
-      response?: { data?: { errors?: { amount?: string[] } } };
+      response?: {
+        data?: { reason?: string; errors?: { amount?: string[] } };
+      };
     }
-  )?.response?.data?.errors?.amount?.[0];
+  )?.response?.data;
 
 /**
  * The first screen of a Deposit link: the payer chooses how much to pay.
@@ -71,34 +90,24 @@ export const DepositAmountCard: React.FC<DepositAmountCardProps> = ({
     setError(null);
   };
 
+  // Routed on the API's `reason`, not its message
   const handleError = (err: unknown) => {
     const apiError = err as ApiError;
-    switch (apiError.statusCode) {
-      case 422: {
-        const message = fieldMessage(apiError);
-        if (message) setError(message);
-        // "This payment link is inactive.": the merchant deactivated it
-        else setBlocked(INACTIVE_MESSAGE);
-        return;
-      }
-      case 409:
-      case 410:
-        // Already set in another tab, or expired: the details show which
-        onStale();
-        return;
-      case 403:
-        setBlocked(
-          apiError.message || "This merchant can't take payments right now.",
-        );
-        return;
-      case 404:
-        setBlocked("Link not found.");
-        return;
-      case 429:
-        setError("Too many attempts. Wait a moment, then try again.");
-        return;
-      default:
-        setError("Something went wrong. Try again.");
+    const body = errorBody(apiError);
+    const reason = body?.reason;
+    // invalid_amount, or Laravel validation errors without a reason
+    const amountMessage = body?.errors?.amount?.[0];
+
+    if (reason && BLOCKING_REASONS[reason]) {
+      setBlocked(BLOCKING_REASONS[reason]);
+    } else if (reason && STALE_REASONS.has(reason)) {
+      onStale();
+    } else if (amountMessage) {
+      setError(amountMessage);
+    } else if (apiError.statusCode === 429) {
+      setError("Too many attempts. Wait a moment, then try again.");
+    } else {
+      setError("Something went wrong. Try again.");
     }
   };
 
