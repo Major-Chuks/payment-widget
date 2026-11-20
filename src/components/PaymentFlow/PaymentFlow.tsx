@@ -47,6 +47,7 @@ import {
   PaymentCountdown,
   PaymentExpiredWhileSigningNotice,
 } from "../PaymentCountdown/PaymentCountdown";
+import { DepositAmountCard } from "../DepositAmountCard/DepositAmountCard";
 
 // SOL kept back for account rent when paying in SOL. It's in SOL, so it
 // doesn't apply to SPL or EVM tokens
@@ -94,6 +95,10 @@ const PaymentFlow: React.FC = () => {
     expires_at,
   }: CheckoutStatusEvent) => {
     const queryKey = publicPaymentsKeys.get_paymentDetailsForPayer(identifier);
+    const previousStatus =
+      queryClient.getQueryData<get_paymentDetailsForPayer>(
+        queryKey,
+      )?.charge_status;
     // A fetch already under way may predate this change; drop it so its
     // answer can't undo it
     await queryClient.cancelQueries({ queryKey });
@@ -106,6 +111,14 @@ const PaymentFlow: React.FC = () => {
           ...(expires_at ? { expires_at } : {}),
         },
     );
+    // The payer entered an amount (here or in another tab): the event doesn't
+    // carry the price the payment screen shows
+    if (
+      previousStatus === "awaiting_amount" &&
+      charge_status !== "awaiting_amount"
+    ) {
+      void refetchPaymentDetails();
+    }
   };
   const isStatusLive = useCheckoutStatusChannel(chargeToken, {
     onStatus: applyCheckoutStatus,
@@ -168,7 +181,14 @@ const PaymentFlow: React.FC = () => {
         identifier,
         params: { network_id: selectedSwapNetwork?.network_id ?? "" },
       },
-      { enabled: !!selectedSwapNetwork && pd?.allows_token_swaps === true },
+      {
+        enabled:
+          !!selectedSwapNetwork &&
+          pd?.allows_token_swaps === true &&
+          // Refused with 409 until a Deposit link has an amount; retrying
+          // would hold the page on its loading screen
+          pd?.charge_status?.toLowerCase() !== "awaiting_amount",
+      },
     );
 
   const computedCryptoOptions = useMemo(() => {
@@ -253,6 +273,9 @@ const PaymentFlow: React.FC = () => {
   // The customer's transaction failed on chain. The backend never marks a
   // charge failed on a timer, so this is final
   const isFailed = chargeStatus === "failed";
+  // A Deposit link before the payer enters an amount. Its expires_at is the
+  // link's expiry, not a checkout countdown
+  const isAwaitingAmount = chargeStatus === "awaiting_amount";
   const merchantName = pd?.merchant?.name || undefined;
 
   // A payment the wallet may still send (or already sent), or its result
@@ -288,15 +311,20 @@ const PaymentFlow: React.FC = () => {
             ? "expired"
             : null;
 
+  // A Deposit link's 20-minute checkout ran out here, but the server hasn't
+  // moved it on yet: it either reopens the link for a new amount or expires it
+  const mayReopenDeposit =
+    pd?.kind === "deposits" &&
+    closedReason === "expired" &&
+    chargeStatus === "pending";
+
   // Without the live channel, check a charge every few seconds while the
   // customer can still pay, so a cancel still shows within seconds
   const shouldCheckStatus =
     !!chargeToken &&
     !!pd &&
     !isStatusLive &&
-    !closedReason &&
-    !isPaymentActive &&
-    !isPaid;
+    ((!closedReason && !isPaymentActive && !isPaid) || mayReopenDeposit);
 
   useEffect(() => {
     if (!shouldCheckStatus) return;
@@ -380,7 +408,9 @@ const PaymentFlow: React.FC = () => {
         paymentStatus !== "confirmed" &&
         !isPaid &&
         !isCancelled &&
-        !isExpired,
+        !isExpired &&
+        // The API refuses quotes until there's an amount
+        !isAwaitingAmount,
     },
   );
 
@@ -475,6 +505,12 @@ const PaymentFlow: React.FC = () => {
       }
       if (isDynamic && latestStatus === "paid") {
         toast.error("This payment has already been made");
+        return;
+      }
+      // The checkout ran out and the Deposit link reopened; the page is
+      // already back on the amount step
+      if (latestStatus === "awaiting_amount") {
+        toast.error("Enter an amount first");
         return;
       }
 
@@ -745,7 +781,8 @@ const PaymentFlow: React.FC = () => {
           <PaymentClosedCard
             reason={closedReason}
             merchantName={merchantName}
-            price={Number(pd.price) || 0}
+            // A Deposit link that expired before the payer entered an amount
+            price={pd.price === null ? undefined : Number(pd.price) || 0}
             priceDenomination={priceDenomination}
             expirationDate={expirationDate}
             identifier={identifier}
@@ -756,6 +793,27 @@ const PaymentFlow: React.FC = () => {
                 ? () => handleReturnToMerchant(closedReason)
                 : undefined
             }
+          />
+        ) : isAwaitingAmount ? (
+          <DepositAmountCard
+            identifier={identifier}
+            merchantName={merchantName}
+            title={pd.product_title}
+            currencyCode={priceDenomination}
+            currencySymbol={pd.price_denomination_asset.symbol}
+            denomination={pd.price_denomination}
+            // The merchant deactivated the Deposit; the link still loads
+            isInactive={pd.status === "inactive"}
+            onAmountSet={() =>
+              // Quotes from an earlier amount on this link are stale
+              queryClient.removeQueries({
+                queryKey: [
+                  ...publicPaymentsKeys.all,
+                  "get_createAShortLivedExchangeRateQuoteForAPayment",
+                ],
+              })
+            }
+            onStale={() => void refetchPaymentDetails()}
           />
         ) : (
           <PaymentCard
@@ -851,6 +909,8 @@ const PaymentFlow: React.FC = () => {
 
       {hasExpiry &&
         !closedReason &&
+        // The link's expiry is days away; the countdown starts with an amount
+        !isAwaitingAmount &&
         !isPaid &&
         !showSuccessModal &&
         timeLeftMs > 0 && (

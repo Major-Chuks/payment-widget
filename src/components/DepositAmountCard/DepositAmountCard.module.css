@@ -1,0 +1,138 @@
+.card {
+  background: #fff;
+  padding: 24px 30px;
+  border-radius: 16px;
+  border: 1px solid var(--Card-Stroke, #e2e8f0);
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Same as the payment card's "Paying <merchant>" line */
+.payee {
+  margin: 0 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--Card-Stroke, #e2e8f0);
+  color: var(--Grey-600, #64748b);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.payee strong {
+  color: var(--Grey-900, #0c0c0e);
+  font-weight: 600;
+}
+
+.title {
+  margin: 0;
+  color: var(--Grey-900, #0c0c0e);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.3px;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  margin: 4px 0 24px;
+  color: var(--Grey-500, #7d828d);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--Grey-500, #7d828d);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--Grey-200, #e2e8f0);
+  background: #f8fafc;
+  transition: border-color 0.2s;
+}
+
+.inputRow:focus-within {
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.inputRowError,
+.inputRowError:focus-within {
+  border-color: #e11d48;
+}
+
+.symbol,
+.code {
+  color: var(--Grey-500, #7d828d);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--Grey-900, #0c0c0e);
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.46px;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.error,
+.blocked {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.error {
+  color: #e11d48;
+}
+
+.blocked {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.buttonWrapper {
+  width: 100%;
+  margin: 32px 0 12px;
+}
+
+.note {
+  margin: 0;
+  text-align: center;
+  color: var(--Grey-500, #7d828d);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.poweredBy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 20px 16px;
+  }
+}

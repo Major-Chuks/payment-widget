@@ -7,6 +7,7 @@ import { type post_submitPaymentTxHash } from "../types/publicPayments/post_subm
 import { type get_checkPaymentStatus } from "../types/publicPayments/get_checkPaymentStatus";
 import { type get_payerSelectableSwapTokensForAPayment } from "../types/publicPayments/get_payerSelectableSwapTokensForAPayment";
 import { type get_createAShortLivedExchangeRateQuoteForAPayment } from "../types/publicPayments/get_createAShortLivedExchangeRateQuoteForAPayment";
+import { type post_setTheAmountOnADepositLink } from "../types/publicPayments/post_setTheAmountOnADepositLink";
 
 export interface PayerSelectableSwapTokensForAPaymentParams {
   /** Network ID from the payment details response. */
@@ -71,6 +72,11 @@ export interface SubmitPaymentTxHashPayload {
   tx_hash: string;
 }
 
+export interface SetTheAmountOnADepositLinkPayload {
+  /** The amount the payer chose, in the Deposit's currency, as a decimal string (2 decimal places for fiat, 8 for crypto). Must match the regex /^\d{1,12}(?:\.\d{1,8})?$/D. */
+  amount: string;
+}
+
 export const publicPaymentsApi = {
   /** @description Get payment details for payer. */
   get_paymentDetailsForPayer: (
@@ -127,6 +133,16 @@ export const publicPaymentsApi = {
     payload: SubmitPaymentTxHashPayload;
   }): Promise<post_submitPaymentTxHash> =>
     apiClient.post(`/api/v1/pay/${identifier}/submit`, payload),
+
+  /** @description Set the amount on a Deposit link (charge_status awaiting_amount). Starts the 20-minute checkout. The identifier is the charge token, "chg_…". */
+  post_setTheAmountOnADepositLink: ({
+    identifier,
+    payload,
+  }: {
+    identifier: string;
+    payload: SetTheAmountOnADepositLinkPayload;
+  }): Promise<post_setTheAmountOnADepositLink> =>
+    apiClient.post(`/api/v1/charges/${identifier}/amount`, payload),
 
   /** @description Check payment status. */
   get_checkPaymentStatus: (

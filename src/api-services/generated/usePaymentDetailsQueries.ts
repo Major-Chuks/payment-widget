@@ -182,6 +182,33 @@ export const usePostSubmitPaymentTxHashMutation = (
   });
 };
 
+export const usePostSetTheAmountOnADepositLinkMutation = (
+  options?: Omit<
+    UseMutationOptions<
+      ApiData<typeof publicPaymentsApi.post_setTheAmountOnADepositLink>,
+      Error,
+      ApiVars<typeof publicPaymentsApi.post_setTheAmountOnADepositLink>
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+
+  return useApiMutation(publicPaymentsApi.post_setTheAmountOnADepositLink, {
+    ...options,
+    onSuccess: (data, variables, context) => {
+      // The payment screen needs the details again: price, pending status
+      // and the 20-minute expiry
+      if (variables?.identifier) {
+        queryClient.invalidateQueries({
+          queryKey: publicPaymentsKeys.get_paymentDetailsForPayer(variables.identifier),
+        });
+      }
+      (options?.onSuccess as any)?.(data, variables, context);
+    },
+  });
+};
+
 export const useGetCheckPaymentStatusQuery = <
   TData = ApiData<typeof publicPaymentsApi.get_checkPaymentStatus>,
 >(

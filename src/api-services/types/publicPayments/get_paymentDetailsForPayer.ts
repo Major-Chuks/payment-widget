@@ -4,8 +4,17 @@ export interface get_paymentDetailsForPayer {
   images: ProductImage[];
   pay_link?: string;
   checkout_type?: string;
+  // "deposits" for Deposit links and Deposit charges made by API
+  kind?: string;
+  // Includes "awaiting_amount": a Deposit link where the payer hasn't
+  // entered an amount yet
   charge_status?: string;
-  price: string;
+  // null while charge_status is "awaiting_amount". A Deposit's comes with 8
+  // decimals, such as "1.00000000"
+  price: string | null;
+  // "active" or "inactive". An inactive Deposit's link still loads but
+  // refuses an amount
+  status?: string;
   price_denomination: "crypto" | string;
   price_denomination_asset: Asset;
   customer_can_change_price: boolean;
@@ -26,7 +35,8 @@ export interface get_paymentDetailsForPayer {
   show_badge: boolean;
   primary_color: string;
   button_color: string;
-  // Only set for dynamic payments (ISO 8601 or epoch)
+  // Only set for dynamic payments (ISO 8601 or epoch). On a Deposit link
+  // awaiting an amount it's the link's expiry, not a checkout countdown
   expires_at?: string | null;
   // Who the customer is paying: the business's company name, or the account
   // holder's full name. Sent for charge checkouts (POS and dynamic payment
