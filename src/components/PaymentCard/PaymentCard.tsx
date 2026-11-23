@@ -64,8 +64,9 @@ interface PaymentCardProps {
   onCustomerInfoChange: (data: Record<string, string>) => void;
   onValidate: (isValid: boolean) => void;
   /**
-   * A Deposit link: the payer enters the amount here, so it replaces the
-   * fixed price.
+   * A Deposit link: the payer enters the amount here, with the token and
+   * network, so it replaces the fixed price. Shown once the wallet is
+   * connected.
    */
   amountField?: React.ReactNode;
   /** Keeps Pay disabled, for example until the payer enters an amount. */
@@ -186,7 +187,9 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           </span>
           <span>Pay with {priceDenomination}</span>
         </div>
-        {amountField ?? (
+        {/* A Deposit link's amount is entered once the wallet is connected,
+            with the token and network; one already entered still shows */}
+        {(!amountField || itemPrice > 0) && (
           <div className={styles.totalPrice}>
             <span className={styles.priceLabel}>Total price</span>
             <div className={styles.priceAmount}>
