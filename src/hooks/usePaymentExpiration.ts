@@ -41,20 +41,22 @@ export const parseExpiry = (val?: string | number | null): number | null => {
   return isNaN(parsed) ? null : parsed;
 };
 
+// "5d 03:12:09", "03:12:09" or "12:09". A Deposit link's checkout lasts
+// until the Deposit expires, which can be up to 30 days away
 export const formatDuration = (ms: number): string => {
   if (ms <= 0) return "00:00";
   const totalSeconds = Math.ceil(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
+  const hh = hours.toString().padStart(2, "0");
   const mm = minutes.toString().padStart(2, "0");
   const ss = seconds.toString().padStart(2, "0");
 
-  if (hours > 0) {
-    const hh = hours.toString().padStart(2, "0");
-    return `${hh}:${mm}:${ss}`;
-  }
+  if (days > 0) return `${days}d ${hh}:${mm}:${ss}`;
+  if (hours > 0) return `${hh}:${mm}:${ss}`;
   return `${mm}:${ss}`;
 };
 

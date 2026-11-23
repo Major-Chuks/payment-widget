@@ -47,7 +47,9 @@ import {
   PaymentCountdown,
   PaymentExpiredWhileSigningNotice,
 } from "../PaymentCountdown/PaymentCountdown";
-import { DepositAmountCard } from "../DepositAmountCard/DepositAmountCard";
+import { type ApiError } from "@/api-services/config";
+import { useDepositAmount } from "@/hooks/useDepositAmount";
+import { DepositAmountField } from "../DepositAmountField/DepositAmountField";
 
 // SOL kept back for account rent when paying in SOL. It's in SOL, so it
 // doesn't apply to SPL or EVM tokens
@@ -83,7 +85,15 @@ const PaymentFlow: React.FC = () => {
     data: pd,
     isLoading: isPdLoading,
     refetch: refetchPaymentDetails,
+    error: pdError,
   } = useGetPaymentDetailsForPayerQuery(identifier);
+
+  // The merchant deactivated or deleted the link, as a live update said. A
+  // deleted link's details then fail with 404 (the last ones loaded stay)
+  const [isLinkWithdrawn, setIsLinkWithdrawn] = useState(false);
+  const isLinkDeleted = (pdError as ApiError | null)?.statusCode === 404;
+  const isLinkUnavailable =
+    isLinkWithdrawn || isLinkDeleted || pd?.status === "inactive";
 
   // Charges (chg_…) report status changes as they happen, such as the cashier
   // cancelling a POS sale. Apply them straight to the loaded details, so the
@@ -93,7 +103,14 @@ const PaymentFlow: React.FC = () => {
   const applyCheckoutStatus = async ({
     charge_status,
     expires_at,
+    available,
   }: CheckoutStatusEvent) => {
+    // Only availability updates carry `available`; payment progress updates
+    // leave it as it is. Either way, the details say what's possible now
+    if (typeof available === "boolean") {
+      setIsLinkWithdrawn(!available);
+      void refetchPaymentDetails();
+    }
     const queryKey = publicPaymentsKeys.get_paymentDetailsForPayer(identifier);
     const previousStatus =
       queryClient.getQueryData<get_paymentDetailsForPayer>(
@@ -254,6 +271,7 @@ const PaymentFlow: React.FC = () => {
     isPaying,
     paymentStep,
     paymentSignature,
+    hasPreparedPayment,
     showStatusModal,
     paymentStatus,
     paymentStatusDetails,
@@ -273,9 +291,12 @@ const PaymentFlow: React.FC = () => {
   // The customer's transaction failed on chain. The backend never marks a
   // charge failed on a timer, so this is final
   const isFailed = chargeStatus === "failed";
-  // A Deposit link before the payer enters an amount. Its expires_at is the
-  // link's expiry, not a checkout countdown
+  // A Deposit link before the payer's first amount reaches the backend, so
+  // there's nothing to quote yet
   const isAwaitingAmount = chargeStatus === "awaiting_amount";
+  // A dashboard Deposit link: the payer enters the amount on the payment card
+  // and can change it until they pay
+  const takesAmount = pd?.charge_source === "deposit_link" || isAwaitingAmount;
   const merchantName = pd?.merchant?.name || undefined;
 
   // A payment the wallet may still send (or already sent), or its result
@@ -298,16 +319,10 @@ const PaymentFlow: React.FC = () => {
     isCompletedOrInFlight: isPaymentActive || isPaid,
   });
 
-  // A dashboard Deposit link goes back to the amount step when its checkout
-  // runs out, and expires only when the link itself does. So this page's
-  // clock never closes it; only the server's "expired" does. An API Deposit
-  // charge ("deposits") expires for good, like any other charge
-  const reopensOnLapse = pd?.charge_source === "deposit_link";
-  const isClosedByExpiry =
-    isExpired && (!reopensOnLapse || chargeStatus === "expired");
-
   // Why the form is replaced by a closed screen, if it is. A paid dynamic
-  // payment never shows the form again, so it can't be paid twice
+  // payment never shows the form again, so it can't be paid twice. A Deposit
+  // link's expires_at is the Deposit's deadline, before and after the payer
+  // enters an amount, so it closes then like any other charge
   const closedReason: PaymentClosedReason | null =
     isDynamic && isPaid
       ? "paid"
@@ -315,37 +330,20 @@ const PaymentFlow: React.FC = () => {
         ? "cancelled"
         : isFailed && !isPaymentActive && !isPaid
           ? "failed"
-          : isClosedByExpiry
+          : isExpired
             ? "expired"
-            : null;
-
-  // The Deposit link's countdown reached zero: fetch where it is now (the
-  // amount step again, or expired) until the server has moved it on
-  const awaitsReopen =
-    reopensOnLapse &&
-    isExpired &&
-    chargeStatus !== "expired" &&
-    !isPaymentActive &&
-    !isPaid;
-
-  useEffect(() => {
-    if (!awaitsReopen) return;
-    void refetchPaymentDetails();
-    const intervalId = setInterval(
-      () => void refetchPaymentDetails(),
-      STATUS_CHECK_INTERVAL_MS,
-    );
-    return () => clearInterval(intervalId);
-  }, [awaitsReopen, refetchPaymentDetails]);
+            : isLinkUnavailable && !isPaymentActive && !isPaid
+              ? "unavailable"
+              : null;
 
   // Without the live channel, check a charge every few seconds while the
-  // customer can still pay, so a cancel still shows within seconds
+  // customer can still pay, so a cancel still shows within seconds. A
+  // deactivated link is checked too, in case the merchant turns it back on
   const shouldCheckStatus =
     !!chargeToken &&
     !!pd &&
     !isStatusLive &&
-    !closedReason &&
-    !awaitsReopen &&
+    (!closedReason || (closedReason === "unavailable" && !isLinkDeleted)) &&
     !isPaymentActive &&
     !isPaid;
 
@@ -373,20 +371,14 @@ const PaymentFlow: React.FC = () => {
 
   // Notify the merchant once, the moment the expired screen is shown
   useEffect(() => {
-    if (!isClosedByExpiry || !isDynamic || hasEmittedExpiredRef.current) return;
+    if (!isExpired || !isDynamic || hasEmittedExpiredRef.current) return;
     hasEmittedExpiredRef.current = true;
     emitWidgetEvent("ORKI_PAYMENT_EXPIRED", {
       identifier,
       expires_at: pd?.expires_at,
       redirect_url: pd?.redirect_url,
     });
-  }, [
-    isClosedByExpiry,
-    isDynamic,
-    identifier,
-    pd?.expires_at,
-    pd?.redirect_url,
-  ]);
+  }, [isExpired, isDynamic, identifier, pd?.expires_at, pd?.redirect_url]);
 
   const emittedUnrecordedTxHashRef = useRef("");
 
@@ -443,6 +435,28 @@ const PaymentFlow: React.FC = () => {
     },
   );
 
+  const depositAmount = useDepositAmount({
+    identifier,
+    enabled: takesAmount,
+    savedAmount: takesAmount ? (pd?.price ?? null) : null,
+    denomination: pd?.price_denomination ?? "fiat",
+    // From a successful payment preparation on, the backend keeps the amount
+    isLocked: hasPreparedPayment,
+    isUnavailable: isLinkUnavailable,
+    onAmountChanged: () => {
+      // The payment details are fetched again by the request itself. A quote
+      // for the old amount is refused, so drop it and ask for a new one
+      setQuoteId(null);
+      void queryClient.resetQueries({
+        queryKey: [
+          ...publicPaymentsKeys.all,
+          "get_createAShortLivedExchangeRateQuoteForAPayment",
+        ],
+      });
+    },
+    onStale: () => void refetchPaymentDetails(),
+  });
+
   const recipientAddress = useMemo(() => {
     if (!selectedNetwork || !pd) return "";
     // Prefer explicit recipient matching by network id
@@ -488,6 +502,16 @@ const PaymentFlow: React.FC = () => {
     if (isExpired || hasLapsed) {
       toast.error("This payment session has expired");
       return;
+    }
+
+    // A Deposit link: the backend must have the amount on screen before the
+    // payment is quoted and prepared. The field shows why if it can't
+    if (takesAmount) {
+      setIsRefetchingForPay(true);
+      const hasAmount = await depositAmount
+        .flush()
+        .finally(() => setIsRefetchingForPay(false));
+      if (!hasAmount) return;
     }
 
     if (!address) {
@@ -536,8 +560,7 @@ const PaymentFlow: React.FC = () => {
         toast.error("This payment has already been made");
         return;
       }
-      // The checkout ran out and the Deposit link reopened; the page is
-      // already back on the amount step
+      // No amount reached the backend
       if (latestStatus === "awaiting_amount") {
         toast.error("Enter an amount first");
         return;
@@ -755,8 +778,11 @@ const PaymentFlow: React.FC = () => {
     if (quote) setQuoteId(quote.quote_id);
   }, [quote]);
 
+  // A Deposit link's swap tokens load once the payer enters an amount; the
+  // page stays, so the amount field keeps its focus
   const isLoading =
-    isPdLoading || (!!pd?.allows_token_swaps && isFetchingSwapTokens);
+    isPdLoading ||
+    (!!pd?.allows_token_swaps && isFetchingSwapTokens && !takesAmount);
 
   if (isLoading) return <LoadingState isDynamic={isDynamic} />;
   // Only when nothing loaded: a failed background check keeps the page as is
@@ -823,29 +849,34 @@ const PaymentFlow: React.FC = () => {
                 : undefined
             }
           />
-        ) : isAwaitingAmount ? (
-          <DepositAmountCard
-            identifier={identifier}
-            merchantName={merchantName}
-            title={pd.product_title}
-            currencyCode={priceDenomination}
-            currencySymbol={pd.price_denomination_asset.symbol}
-            denomination={pd.price_denomination}
-            // The merchant deactivated the Deposit; the link still loads
-            isInactive={pd.status === "inactive"}
-            onAmountSet={() =>
-              // Quotes from an earlier amount on this link are stale
-              queryClient.removeQueries({
-                queryKey: [
-                  ...publicPaymentsKeys.all,
-                  "get_createAShortLivedExchangeRateQuoteForAPayment",
-                ],
-              })
-            }
-            onStale={() => void refetchPaymentDetails()}
-          />
         ) : (
           <PaymentCard
+            amountField={
+              takesAmount ? (
+                <DepositAmountField
+                  value={depositAmount.value}
+                  onChange={depositAmount.onChange}
+                  onBlur={depositAmount.onBlur}
+                  currencyCode={priceDenomination}
+                  currencySymbol={pd.price_denomination_asset.symbol}
+                  maxDecimals={depositAmount.maxDecimals}
+                  // Can't change while a payment is under way
+                  disabled={
+                    depositAmount.isDisabled ||
+                    isPaying ||
+                    isRefetchingForPay ||
+                    isPaymentActive
+                  }
+                  isLocked={depositAmount.isLocked}
+                  error={depositAmount.error}
+                  blocked={depositAmount.blocked}
+                />
+              ) : undefined
+            }
+            isPayBlocked={
+              takesAmount &&
+              (!depositAmount.hasAmount || !!depositAmount.blocked)
+            }
             merchantName={merchantName}
             isWalletConnected={isConnected}
             itemPrice={Number(pd.price) || 0}
@@ -936,10 +967,9 @@ const PaymentFlow: React.FC = () => {
         error={paymentStatusDetails?.error ?? ""}
       />
 
+      {/* A Deposit link counts down to the Deposit's deadline from the start */}
       {hasExpiry &&
         !closedReason &&
-        // The link's expiry is days away; the countdown starts with an amount
-        !isAwaitingAmount &&
         !isPaid &&
         !showSuccessModal &&
         timeLeftMs > 0 && (

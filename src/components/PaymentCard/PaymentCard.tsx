@@ -63,6 +63,13 @@ interface PaymentCardProps {
   onTokenSelect: (option: SelectorOption) => void;
   onCustomerInfoChange: (data: Record<string, string>) => void;
   onValidate: (isValid: boolean) => void;
+  /**
+   * A Deposit link: the payer enters the amount here, so it replaces the
+   * fixed price.
+   */
+  amountField?: React.ReactNode;
+  /** Keeps Pay disabled, for example until the payer enters an amount. */
+  isPayBlocked?: boolean;
 }
 export const PaymentCard: React.FC<PaymentCardProps> = ({
   merchantName,
@@ -95,6 +102,8 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
   onConnectWallet,
   onNetworkSelect,
   onCustomerInfoChange,
+  amountField,
+  isPayBlocked = false,
 }) => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
@@ -177,12 +186,14 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           </span>
           <span>Pay with {priceDenomination}</span>
         </div>
-        <div className={styles.totalPrice}>
-          <span className={styles.priceLabel}>Total price</span>
-          <div className={styles.priceAmount}>
-            {itemPrice.toFixed(2)} {priceDenomination}
+        {amountField ?? (
+          <div className={styles.totalPrice}>
+            <span className={styles.priceLabel}>Total price</span>
+            <div className={styles.priceAmount}>
+              {itemPrice.toFixed(2)} {priceDenomination}
+            </div>
           </div>
-        </div>
+        )}
         <div className={styles.buttonWrapper}>
           <Button variant="primary" onClick={onConnectWallet}>
             CONNECT WALLET
@@ -217,6 +228,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           Paying <strong>{merchantName}</strong>
         </p>
       )}
+      {amountField}
       <div className={styles.dropdownWrapper}>
         <DropdownSelector
           options={tokens}
@@ -260,7 +272,9 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
 
       <div className={styles.priceBreakdown}>
         <div className={styles.priceRow}>
-          <span className={styles.priceLabel}>Total Price</span>
+          <span className={styles.priceLabel}>
+            {amountField ? "You pay" : "Total Price"}
+          </span>
 
           {quoteReady && (
             <QuoteRefreshButton
@@ -270,10 +284,13 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           )}
         </div>
 
-        <div className={styles.totalAmount}>
-          {totalPrice.toFixed(2)}{" "}
-          <span className={styles.currency}>{priceDenomination}</span>
-        </div>
+        {/* A Deposit link's amount is in the field above */}
+        {!amountField && (
+          <div className={styles.totalAmount}>
+            {totalPrice.toFixed(2)}{" "}
+            <span className={styles.currency}>{priceDenomination}</span>
+          </div>
+        )}
         {quote ? (
           <>
             <div className={styles.rate}>
@@ -298,6 +315,11 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
           <div className={styles.error}>
             <WarningIcon style={{ flex: "0 0 auto" }} />{" "}
             {quoteError?.message || "Failed to fetch quote"}
+          </div>
+        ) : amountField && isPayBlocked ? (
+          // No amount yet, so there's no quote
+          <div className={styles.rate}>
+            Enter an amount to see what you&apos;ll pay.
           </div>
         ) : null}
       </div>
@@ -354,6 +376,7 @@ export const PaymentCard: React.FC<PaymentCardProps> = ({
         // Ensures double-clicks are physically disabled while `isLoading` (mapped to isPaying) is true
         disabled={
           isLoading ||
+          isPayBlocked ||
           (requiresCustomerInfo && !isFormValid) ||
           !agreedToTerms ||
           !isSufficientBalance

@@ -182,23 +182,23 @@ export const usePostSubmitPaymentTxHashMutation = (
   });
 };
 
-export const usePostSetTheAmountOnADepositLinkMutation = (
+export const usePatchSetTheAmountOnADepositLinkMutation = (
   options?: Omit<
     UseMutationOptions<
-      ApiData<typeof publicPaymentsApi.post_setTheAmountOnADepositLink>,
+      ApiData<typeof publicPaymentsApi.patch_setTheAmountOnADepositLink>,
       Error,
-      ApiVars<typeof publicPaymentsApi.post_setTheAmountOnADepositLink>
+      ApiVars<typeof publicPaymentsApi.patch_setTheAmountOnADepositLink>
     >,
     "mutationFn"
   >,
 ) => {
   const queryClient = useQueryClient();
 
-  return useApiMutation(publicPaymentsApi.post_setTheAmountOnADepositLink, {
+  return useApiMutation(publicPaymentsApi.patch_setTheAmountOnADepositLink, {
     ...options,
     onSuccess: (data, variables, context) => {
-      // The payment screen needs the details again: price, pending status
-      // and the 20-minute expiry
+      // The payment screen needs the details again: the new price, and the
+      // pending status after a first amount
       if (variables?.identifier) {
         queryClient.invalidateQueries({
           queryKey: publicPaymentsKeys.get_paymentDetailsForPayer(variables.identifier),

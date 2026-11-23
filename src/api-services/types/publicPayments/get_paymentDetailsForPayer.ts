@@ -6,9 +6,9 @@ export interface get_paymentDetailsForPayer {
   checkout_type?: string;
   // "deposits" for Deposit links and Deposit charges made by API
   kind?: string;
-  // Who made the charge. "deposit_link": a dashboard Deposit link, which
-  // goes back to the amount step when its checkout runs out. "deposits": an
-  // API Deposit charge, which expires for good
+  // Who made the charge. "deposit_link": a dashboard Deposit link, whose
+  // payer enters and can change the amount; its expires_at is the Deposit's
+  // deadline from start to finish. "deposits": an API Deposit charge
   charge_source?: string;
   // Includes "awaiting_amount": a Deposit link where the payer hasn't
   // entered an amount yet
@@ -16,8 +16,8 @@ export interface get_paymentDetailsForPayer {
   // null while charge_status is "awaiting_amount". In the currency's
   // decimals ("49.99"), crypto without trailing zeros
   price: string | null;
-  // "active" or "inactive". An inactive Deposit's link still loads but
-  // refuses an amount
+  // "active" or "inactive". An inactive Deposit's link still loads but can't
+  // be paid; a deleted one returns 404
   status?: string;
   price_denomination: "crypto" | string;
   price_denomination_asset: Asset;

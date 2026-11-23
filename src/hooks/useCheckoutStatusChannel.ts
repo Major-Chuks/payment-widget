@@ -16,6 +16,14 @@ export interface CheckoutStatusEvent {
   charge_token: string;
   charge_status: string;
   expires_at?: string | null;
+  /**
+   * Only on link availability updates: false when the merchant deactivated
+   * or deleted the link, true when they turned it back on. Absent on payment
+   * progress updates, which leave availability as it is.
+   */
+  available?: boolean;
+  /** "link_inactive" or "link_deleted" when `available` is false. */
+  reason?: string | null;
 }
 
 // One connection for the page's lifetime. Echo and pusher-js load on demand,

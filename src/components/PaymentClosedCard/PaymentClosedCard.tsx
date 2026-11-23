@@ -5,8 +5,10 @@ import styles from "./PaymentClosedCard.module.css";
 import Button from "../Button/Button";
 import { formatAddress } from "@/utils";
 
-// Why the payment can no longer take a transaction
-export type PaymentClosedReason = "expired" | "paid" | "cancelled" | "failed";
+// Why the payment can no longer take a transaction. "unavailable": the
+// merchant deactivated or deleted the link
+export type PaymentClosedReason =
+  "expired" | "paid" | "cancelled" | "failed" | "unavailable";
 
 interface PaymentClosedCardProps {
   reason: PaymentClosedReason;
@@ -45,6 +47,11 @@ const COPY: Record<PaymentClosedReason, { title: string; description: string }> 
       description:
         "The transaction for this payment failed on the network, so the payment wasn't completed. Ask the merchant for a new one if you still want to pay.",
     },
+    unavailable: {
+      title: "Link Unavailable",
+      description:
+        "The merchant has turned this link off, so it can't be paid. Ask the merchant if you still want to pay.",
+    },
   };
 
 const ReasonIcon: React.FC<{ reason: PaymentClosedReason }> = ({ reason }) => (
@@ -62,7 +69,9 @@ const ReasonIcon: React.FC<{ reason: PaymentClosedReason }> = ({ reason }) => (
   >
     {reason === "paid" ? (
       <polyline points="20 6 9 17 4 12" />
-    ) : reason === "cancelled" || reason === "failed" ? (
+    ) : reason === "cancelled" ||
+      reason === "failed" ||
+      reason === "unavailable" ? (
       <>
         <circle cx="12" cy="12" r="10" />
         <line x1="15" y1="9" x2="9" y2="15" />

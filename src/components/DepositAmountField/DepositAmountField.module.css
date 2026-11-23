@@ -1,0 +1,81 @@
+/* The amount a payer enters on a Deposit link, inside the payment card */
+.field {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--Grey-500, #7d828d);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--Grey-200, #e2e8f0);
+  background: #f8fafc;
+  transition: border-color 0.2s;
+}
+
+.inputRow:focus-within {
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.inputRowError,
+.inputRowError:focus-within {
+  border-color: #e11d48;
+}
+
+.symbol,
+.code {
+  color: var(--Grey-500, #7d828d);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--Grey-900, #0c0c0e);
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.46px;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.hint,
+.error,
+.blocked {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.hint {
+  color: var(--Grey-500, #7d828d);
+}
+
+.error {
+  color: #e11d48;
+}
+
+.blocked {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+}

@@ -156,6 +156,9 @@ export const useExecutePayment = () => {
   const [paymentStep, setPaymentStep] = useState("");
   const [paymentSignature, setPaymentSignature] =
     useState<PaymentSignatureState>("none");
+  // The backend accepted a payment preparation on this page. It stays true:
+  // the prepared payment holds the charge's amount from then on
+  const [hasPreparedPayment, setHasPreparedPayment] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
     "submitted" | "pending" | "confirmed" | "failed" | "unrecorded"
@@ -241,6 +244,9 @@ export const useExecutePayment = () => {
           identifier,
           payload: commonPayload,
         });
+        // A Deposit link's amount is now locked, even if the payer rejects
+        // the wallet prompt
+        setHasPreparedPayment(true);
 
         assertSessionOpen();
         setPaymentStep("Awaiting wallet signature...");
@@ -368,6 +374,9 @@ export const useExecutePayment = () => {
         identifier,
         payload: commonPayload,
       });
+      // A Deposit link's amount is now locked, even if the payer rejects the
+      // wallet prompt
+      setHasPreparedPayment(true);
 
       let finalTxHash: string = "";
 
@@ -497,6 +506,7 @@ export const useExecutePayment = () => {
     isPaying,
     paymentStep,
     paymentSignature,
+    hasPreparedPayment,
     showStatusModal,
     paymentStatus,
     paymentStatusDetails,

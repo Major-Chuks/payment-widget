@@ -7,7 +7,7 @@ import { type post_submitPaymentTxHash } from "../types/publicPayments/post_subm
 import { type get_checkPaymentStatus } from "../types/publicPayments/get_checkPaymentStatus";
 import { type get_payerSelectableSwapTokensForAPayment } from "../types/publicPayments/get_payerSelectableSwapTokensForAPayment";
 import { type get_createAShortLivedExchangeRateQuoteForAPayment } from "../types/publicPayments/get_createAShortLivedExchangeRateQuoteForAPayment";
-import { type post_setTheAmountOnADepositLink } from "../types/publicPayments/post_setTheAmountOnADepositLink";
+import { type patch_setTheAmountOnADepositLink } from "../types/publicPayments/patch_setTheAmountOnADepositLink";
 
 export interface PayerSelectableSwapTokensForAPaymentParams {
   /** Network ID from the payment details response. */
@@ -134,15 +134,15 @@ export const publicPaymentsApi = {
   }): Promise<post_submitPaymentTxHash> =>
     apiClient.post(`/api/v1/pay/${identifier}/submit`, payload),
 
-  /** @description Set the amount on a Deposit link (charge_status awaiting_amount). Starts the 20-minute checkout. The identifier is the charge token, "chg_…". */
-  post_setTheAmountOnADepositLink: ({
+  /** @description Set or change the amount on a dashboard Deposit link (charge_source deposit_link): the first amount while charge_status is awaiting_amount, then changes while it's pending. The Deposit's expiry stays the same. Preparing the payment (/pay) locks the amount; after that this returns 409 with reason payment_processing. The identifier is the charge token, "chg_…". */
+  patch_setTheAmountOnADepositLink: ({
     identifier,
     payload,
   }: {
     identifier: string;
     payload: SetTheAmountOnADepositLinkPayload;
-  }): Promise<post_setTheAmountOnADepositLink> =>
-    apiClient.post(`/api/v1/charges/${identifier}/amount`, payload),
+  }): Promise<patch_setTheAmountOnADepositLink> =>
+    apiClient.patch(`/api/v1/charges/${identifier}/amount`, payload),
 
   /** @description Check payment status. */
   get_checkPaymentStatus: (

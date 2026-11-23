@@ -38,7 +38,8 @@
   color: #16a34a;
 }
 
-.cancelled {
+.cancelled,
+.unavailable {
   background: #f8fafc;
   border-color: #e2e8f0;
   color: #64748b;
