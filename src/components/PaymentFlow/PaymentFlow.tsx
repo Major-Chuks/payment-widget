@@ -239,6 +239,36 @@ const PaymentFlow: React.FC = () => {
     evmTokens: formatBackendTokens(computedCryptoOptions).evmTokens,
   });
 
+  // A Deposit link's swap tokens load only once there's an amount, so the
+  // payer may connect first. Picking the first token then switches the wallet
+  // to its network: a Solana network with an EVM wallet (or the reverse)
+  // reads as disconnected, and the page goes back to Connect wallet. So
+  // before a token is picked, start on a swap network of the wallet's kind
+  useEffect(() => {
+    if (!isConnected || selectedToken || !pd?.swap_networks?.length) return;
+    const walletIsSolana = chain === "solana";
+    const isSolanaSwap = (option: SwapOptions) => {
+      const network = findAppKitNetwork({
+        slug: option.network.slug,
+        name: option.network.title,
+      });
+      return (
+        !!network &&
+        "chainNamespace" in network &&
+        network.chainNamespace === "solana"
+      );
+    };
+    if (
+      selectedSwapNetwork &&
+      isSolanaSwap(selectedSwapNetwork) === walletIsSolana
+    )
+      return;
+    const match = pd.swap_networks.find(
+      (option) => isSolanaSwap(option) === walletIsSolana,
+    );
+    if (match) setSelectedSwapNetwork(match);
+  }, [isConnected, chain, selectedToken, selectedSwapNetwork, pd]);
+
   const { open } = useAppKit();
   const { switchNetwork } = useAppKitNetwork();
   const disconnect = useDisconnectWallet();
