@@ -16,6 +16,10 @@ export interface get_paymentDetailsForPayer {
   // null while charge_status is "awaiting_amount". In the currency's
   // decimals ("49.99"), crypto without trailing zeros
   price: string | null;
+  // Dashboard Deposit checkouts only: whether the payer can still set or
+  // change the amount. false once a payment has been prepared, even if the
+  // payer cancelled the wallet prompt
+  amount_editable?: boolean;
   // "active" or "inactive". An inactive Deposit's link still loads but can't
   // be paid; a deleted one returns 404
   status?: string;

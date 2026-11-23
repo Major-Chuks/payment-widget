@@ -148,13 +148,14 @@ export const useDepositAmount = ({
     const apiError = err as ApiError;
     const body = errorBody(apiError);
     const reason = body?.reason;
-    // invalid_amount, or a format error without a reason
+    // invalid_amount: below the minimum, or not a valid amount
     const amountMessage =
       body?.errors?.amount?.[0] ??
       (reason === "invalid_amount" ? body?.msg : undefined);
 
     if (reason === "payment_processing") {
-      // Prepared already, perhaps before a reload: the amount is final
+      // Prepared in the meantime (amount_editable was still true when the
+      // details loaded): the amount is final
       setIsLockedByServer(true);
       callbacksRef.current.onStale();
     } else if (reason && BLOCKING_REASONS[reason]) {

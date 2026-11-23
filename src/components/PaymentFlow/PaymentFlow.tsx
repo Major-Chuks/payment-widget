@@ -440,8 +440,9 @@ const PaymentFlow: React.FC = () => {
     enabled: takesAmount,
     savedAmount: takesAmount ? (pd?.price ?? null) : null,
     denomination: pd?.price_denomination ?? "fiat",
-    // From a successful payment preparation on, the backend keeps the amount
-    isLocked: hasPreparedPayment,
+    // From a successful payment preparation on, the backend keeps the amount:
+    // seen here, or reported by the details (after a reload, say)
+    isLocked: hasPreparedPayment || pd?.amount_editable === false,
     isUnavailable: isLinkUnavailable,
     onAmountChanged: () => {
       // The payment details are fetched again by the request itself. A quote
